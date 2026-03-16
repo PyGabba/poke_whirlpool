@@ -345,6 +345,10 @@ function openPaypalModal() {
   const amount = total.toFixed(2);
   const paypalUrl = `https://www.paypal.com/paypalme/${PAYPAL_ME}/${amount}EUR`;
 
+  if (isMobileDevice()) {
+    window.open(paypalUrl, '_blank');
+  }
+
   document.getElementById('paypalAmount').textContent = `€ ${amount.replace('.', ',')}`;
 
   const container = document.getElementById('qrCanvas').parentElement;
@@ -385,10 +389,6 @@ function openPaypalModal() {
     }
   }, 1000);
 
-  if (isMobileDevice()) {
-    window.open(paypalUrl, '_blank');
-  }
-
   document.getElementById('paypalModal').classList.add('show');
 }
 
@@ -407,6 +407,10 @@ function openSatispayModal() {
   const amount = total.toFixed(2);
 
 const satispayUrl = `https://satispay.me/${SATISPAY_NAME}`;
+
+  if (isMobileDevice()) {
+    window.open(satispayUrl, '_blank');
+  }
 
   document.getElementById('satispayAmount').textContent =
     `€ ${amount.replace('.', ',')}`;
@@ -455,10 +459,6 @@ const satispayUrl = `https://satispay.me/${SATISPAY_NAME}`;
       timerEl.style.display = 'none';
     }
   }, 1000);
-
-  if (isMobileDevice()) {
-    window.open(satispayUrl, '_blank');
-  }
 
   document.getElementById('satispayModal').classList.add('show');
 }
