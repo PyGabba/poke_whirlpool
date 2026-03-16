@@ -311,3 +311,79 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--dar
   height: 100%; background: rgba(255,255,255,0.85);
   border-radius: 2px; transition: width 1s linear;
 }
+
+/* ===== FAVOURITES ============================================================ */
+
+/* ♥ button on menu items and poke cards */
+.fav-btn {
+  background: none;
+  border: 1.5px solid var(--border, #ddd);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #bbb;
+  transition: color 0.2s, border-color 0.2s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.fav-btn:hover {
+  color: #e53935;
+  border-color: #e53935;
+  transform: scale(1.15);
+}
+
+.fav-btn.fav-active {
+  color: #e53935;
+  border-color: #e53935;
+  background: #fff0f0;
+}
+
+/* Favourites list inside history panel */
+.fav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.fav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff8f8;
+  border: 1px solid #fdd;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.fav-item-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.fav-item-price {
+  color: var(--red, #e53935);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.remove-fav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  font-size: 0.8rem;
+  padding: 0 0.2rem;
+  transition: color 0.15s;
+}
+
+.remove-fav-btn:hover {
+  color: #e53935;
+}
