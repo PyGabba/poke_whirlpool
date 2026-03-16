@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({ secret: 'pokegarden-secret', resave: false, saveUninitialized: true }));
+app.use(session({ secret: 'pokewhirlpool-secret', resave: false, saveUninitialized: true }));
 
 // ── Persistence ──────────────────────────────────────────────────────────────
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -119,25 +119,55 @@ const menu = {
     regular: { price: 9.90, base: 2, proteine: 2, fruttaVerdura: 4, salse: 2, topping: 1 },
     large: { price: 13.90, base: 2, proteine: 3, fruttaVerdura: 5, salse: 2, topping: 2 },
   },
-  pokeComponents: {
+pokeComponents: {
     base: ['Riso Bianco', 'Riso Integrale Venere', 'Insalata Misticanza'],
     proteine: [
-      { name: 'Salmone crudo', extra: 0 }, { name: 'Salmone grill', extra: 0 },
-      { name: 'Tonno crudo', extra: 0 }, { name: 'Tonno sottolio', extra: 0 },
-      { name: 'Pollo', extra: 0 }, { name: 'Gambero vapore', extra: 0 },
-      { name: 'Gambero fritto', extra: 0 }, { name: 'Polpo', extra: 1 },
-      { name: 'Branzino', extra: 0 }, { name: 'Anguilla', extra: 1 },
-      { name: 'Tofu normale', extra: 0 }, { name: 'Tofu affumicato', extra: 0 },
+      { name: 'Anguilla', extra: 1 },
+      { name: 'Salmone Crudo', extra: 0 },
+      { name: 'Salmone Grill', extra: 0 },
+      { name: 'Salmone Tartare Spicy', extra: 1 },
+      { name: 'Feta', extra: 0 },
+      { name: 'Uova', extra: 0 },
+      { name: 'Tofu Normale', extra: 0 },
+      { name: 'Tofu Affumicato', extra: 0 },
+      { name: 'Tonno Crudo', extra: 0 },
+      { name: 'Tonno Sottolio', extra: 0 },
+      { name: 'Tonno Tartare Spicy', extra: 1 },
       { name: 'Surimi', extra: 0 },
+      { name: 'Pollo Normale', extra: 0 },
+      { name: 'Pollo Fritto', extra: 1 }, // Note: Fritto has a +1 surcharge
+      { name: 'Polpo', extra: 1 },
+      { name: 'Ikura', extra: 1 },
+      { name: 'Mozzarella', extra: 0 },
+      { name: 'Gambero Vapore', extra: 0 },
+      { name: 'Gambero Fritto', extra: 1 }, // Note: Fritto has a +1 surcharge
+      { name: 'Branzino', extra: 0 },
+      { name: 'Prosciutto Cotto', extra: 0 }
     ],
-    fruttaVerdura: ['Ananas','Carote','Avocado','Cetrioli','Cipolla','Edamame','Germogli di soia','Goma wakame','Mais','Mango','Pink ginger','Finocchi arancia','Peperoni','Cavolo rosso','Daikon','Olive','Pomodorini','Zucchine'],
-    salse: ['Aceto balsamico','Soia','Mango','Olio EVO','Ponzu','Sesamo dressing','Poke','Soya wasabi','Spicy mayo','Sriracha','Yogurt','Teriyaki'],
+    fruttaVerdura: [
+      'Ananas', 'Cipolla', 'Piselli', 'Mais', 'Peperoni', 'Daikon', 'Funghi Trifolati',
+      'Carote', 'Edamame', 'Mango', 'Fragola', 'Pesca', 'Zucchine', 'Olive', 'Ceci',
+      'Avocado', 'Pomodorini', 'Melone', 'Cetrioli', 'Jalapeno', 'Melograno',
+      'Germogli di Soia', 'Goma Wakame', 'Finocchi Arancia', 'Cavolo Rosso', 'Pink Ginger'
+    ],
+    salse: [
+      'Aceto Balsamico', 'Ponzu', 'Spicy Mayo', 
+      'Soia', 'Sesamo Dressing', 'Sriracha', 
+      'Poke', 'Mango', 'Avocado Lime', 'Yogurt',
+      'Olio Extra Vergine d\'Oliva', 'Soya Wasabi', 'Teriyaki'
+    ],
     topping: [
-      { name: 'Tobiko', extra: 1 }, { name: 'Mandorle', extra: 0 },
-      { name: 'Sesamo', extra: 0 }, { name: 'Pistacchio', extra: 0 },
-      { name: 'Cipolla croccante', extra: 0 }, { name: 'Peperoncino a filo', extra: 0 },
-      { name: 'Sesamo al wasabi', extra: 0 }, { name: 'Ikura', extra: 1 },
-      { name: 'Philadelphia', extra: 1 },
+      { name: 'Tobiko', extra: 1 },
+      { name: 'Cipolla Croccante', extra: 0 },
+      { name: 'Ikura', extra: 1 },
+      { name: 'Mandorle', extra: 0 },
+      { name: 'Peperoncino Filo', extra: 0 },
+      { name: 'Pasta Kataifi', extra: 0 },
+      { name: 'Sesamo', extra: 0 },
+      { name: 'Sesamo al Wasabi', extra: 0 },
+      { name: 'Polvere di Alghe Nori', extra: 0 },
+      { name: 'Granella Pistacchio', extra: 0 },
+      { name: 'Philadelphia', extra: 1 }
     ],
   }
 };
@@ -196,4 +226,4 @@ app.patch('/api/orders/:id/status', (req, res) => {
   res.json({ success: true, order });
 });
 
-app.listen(PORT, () => console.log(`Poke Garden running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Poke Whirlpool running at http://localhost:${PORT}`));
