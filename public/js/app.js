@@ -398,7 +398,7 @@ function closePaypalModal() {
 }
 
 // ===== SATISPAY QR =====
-const SATISPAY_NAME = 'gabrielefelici98';
+const SATISPAY_NAME = 'S6Y-CON--77B75E49-43A0-40D4-9D20-9620A9B11D88';
 
 let _satispayTimerInterval = null;
 
@@ -406,7 +406,7 @@ function openSatispayModal() {
   const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
   const amount = total.toFixed(2);
 
-const satispayUrl = `https://satispay.me/${SATISPAY_NAME}`;
+const satispayUrl = `https://web.satispay.com/app/match/link/user/${SATISPAY_NAME}?amount=${amount*100}&currency=EUR`;
 
   if (isMobileDevice()) {
     window.open(satispayUrl, '_blank');
