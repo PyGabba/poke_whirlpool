@@ -458,7 +458,7 @@ async function lookupCode(code) {
       panel.style.display = 'block';
       panel.innerHTML = `
         <p class="history-panel-title">Codice cliente</p>
-        <p class="history-new-msg">✨ Benvenuto! Questo è il tuo primo ordine con il codice <strong>${code}</strong>. I tuoi ordini futuri verranno ricordati.</p>
+        <p class="history-new-msg">✨ Benvenuto! <strong>${code}</strong>. I tuoi ordini futuri verranno ricordati.</p>
       `;
     }
   } catch (e) {
