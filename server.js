@@ -190,6 +190,7 @@ app.post('/api/orders', async (req, res) => {
           $push: {
             orderHistory: {
               orderNumber: order.orderNumber,
+              customer:    order.customerName,
               date:        order.createdAt,
               items:       order.items,
               total:       parseFloat(order.total),

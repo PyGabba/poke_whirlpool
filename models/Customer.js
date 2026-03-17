@@ -12,6 +12,7 @@ const favouriteItemSchema = new mongoose.Schema({
 
 const orderHistorySchema = new mongoose.Schema({
   orderNumber: { type: Number },
+  customer:    { type: String },
   date:        { type: Date },
   items:       { type: Array, default: [] },
   total:       { type: Number, default: 0 },

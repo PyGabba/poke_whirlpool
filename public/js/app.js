@@ -398,16 +398,22 @@ let _currentHistory = null;
 
 function setupCustomerCode() {
   const input = document.getElementById('customerCode');
+  
+  // Listen for typing
   input.addEventListener('input', () => {
     clearTimeout(_codeDebounce);
     const val = input.value.trim().toUpperCase();
     if (!val) { resetCodeUI(); return; }
+    
+    // Trigger lookupCode after 450ms of no typing
     if (val.length >= 4) {
       _codeDebounce = setTimeout(() => lookupCode(val), 450);
     } else {
       resetCodeUI();
     }
   });
+
+  // Keep it capitalized when they click away
   input.addEventListener('blur', () => {
     const val = input.value.trim().toUpperCase();
     if (val) input.value = val;
@@ -432,6 +438,7 @@ async function lookupCode(code) {
   const input  = document.getElementById('customerCode');
   const status = document.getElementById('codeStatus');
   const panel  = document.getElementById('historyPanel');
+  const nameInput = document.getElementById('customerName'); // Matches your HTML ID
 
   try {
     const res  = await fetch(`/api/customer/${encodeURIComponent(code)}`);
@@ -449,6 +456,27 @@ async function lookupCode(code) {
       status.style.color = 'var(--green)';
       renderHistoryPanel(data.history, panel);
       panel.style.display = 'block';
+
+      // --- IMPROVED AUTO-FILL LOGIC ---
+      // 1. Sort history newest-first (just like your history panel does)
+      const sortedHistory = [...data.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const lastOrder = sortedHistory[0]; // Get the absolute newest order
+
+      console.log("Ultimo ordine trovato:", lastOrder); // 🐛 Debug info in console
+
+      // 2. Auto-fill if a custom name exists
+      if (lastOrder && lastOrder.customer && lastOrder.customer !== 'Cliente') {
+        console.log("Auto-compilazione nome con:", lastOrder.customer); // 🐛 Debug info
+        nameInput.value = lastOrder.customer;
+        
+        // Visual feedback
+        nameInput.style.backgroundColor = '#e8f5e9';
+        setTimeout(() => nameInput.style.backgroundColor = '', 1000);
+      } else {
+        console.log("Nessun nome personalizzato da auto-compilare. Trovato:", lastOrder?.customer);
+      }
+      // --------------------------------
+
     } else {
       _currentHistory = null;
       input.classList.add('code-new');
@@ -462,6 +490,7 @@ async function lookupCode(code) {
       `;
     }
   } catch (e) {
+    console.error("Errore lookupCode:", e);
     resetCodeUI();
   }
 }
