@@ -6,6 +6,22 @@ const path      = require('path');
 const mongoose  = require('mongoose');
 const Customer  = require('./models/Customer');
 
+const url = `https://poke-whp.onrender.com/`; // Render URL
+const interval = 300000; // Interval in milliseconds (300 seconds)
+
+//Reloader Function
+function reloadWebsite() {
+  axios.get(url)
+    .then(response => {
+      console.log(`Reloaded at ${new Date().toISOString()}: Status Code ${response.status}`);
+    })
+    .catch(error => {
+      console.error(`Error reloading at ${new Date().toISOString()}:`, error.message);
+    });
+}
+
+setInterval(reloadWebsite, interval);
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
