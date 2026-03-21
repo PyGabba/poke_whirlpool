@@ -16,6 +16,8 @@ const orderHistorySchema = new mongoose.Schema({
   date:        { type: Date },
   items:       { type: Array, default: [] },
   total:       { type: Number, default: 0 },
+  notes:       { type: String, default: '' },
+  bacchette:   { type: Boolean, default: false },
 });
 
 // ── Main schema ───────────────────────────────────────────────────────────────

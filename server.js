@@ -182,7 +182,7 @@ app.get('/api/menu', (req, res) => res.json(menu));
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 app.post('/api/orders', async (req, res) => {
-  const { customerName, tableNumber, items, total, notes, customerCode } = req.body;
+  const { customerName, tableNumber, items, total, notes, bacchette, customerCode } = req.body;
   const code = customerCode ? customerCode.trim().toUpperCase() : null;
 
   const order = {
@@ -191,7 +191,7 @@ app.post('/api/orders', async (req, res) => {
     customerName: customerName || 'Cliente',
     customerCode: code || null,
     tableNumber:  tableNumber || '-',
-    items, total, notes,
+    items, total, notes, bacchette: !!bacchette,
     status:       'pending',
     createdAt:    new Date().toISOString(),
   };
@@ -210,6 +210,8 @@ app.post('/api/orders', async (req, res) => {
               date:        order.createdAt,
               items:       order.items,
               total:       parseFloat(order.total),
+              notes:       order.notes || '',
+              bacchette:   !!bacchette,
             },
           },
         },

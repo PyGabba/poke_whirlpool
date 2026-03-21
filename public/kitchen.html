@@ -234,7 +234,7 @@ function rowsForOrder(order) {
     ? order.notes.replace(/\d*\s*bacchett\w*[^,]*(,\s*)?/gi,'').replace(/\d*\s*forchet\w*[^,]*(,\s*)?/gi,'').trim().replace(/^,\s*|,\s*$/g,'').trim()
     : '';
 
-  const wantsChopsticks = order.notes && order.notes.toLowerCase().includes('bacchette');
+  const wantsChopsticks = !!order.bacchette || (order.notes && order.notes.toLowerCase().includes('bacchette'));
 
   const itemRows = pokeItems.map((item, idx) => {
     const parsed = parsePokeDetail(item.detail);

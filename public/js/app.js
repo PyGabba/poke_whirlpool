@@ -272,6 +272,7 @@ async function submitOrder() {
       items:        cart,
       total:        total.toFixed(2),
       notes:        document.getElementById('orderNotes').value,
+      bacchette:    document.getElementById('bacchette').checked,
     }),
   });
   return { data: await res.json(), total };
@@ -286,6 +287,7 @@ function showSuccessModal(orderNumber, name, total) {
   updateCartUI();
   document.getElementById('customerName').value  = '';
   document.getElementById('orderNotes').value    = '';
+  document.getElementById('bacchette').checked   = false;
   document.getElementById('customerCode').value  = '';
   resetCodeUI();
 }
@@ -569,6 +571,10 @@ function reorder(historyIdx) {
       qtyEl.textContent = current + (item.qty || 1);
     }
   });
+  // Restore notes and bacchette from the saved order
+  if (order.notes)     document.getElementById('orderNotes').value  = order.notes;
+  if (order.bacchette) document.getElementById('bacchette').checked = true;
+
   updateCartUI();
   const btn = event.target;
   btn.textContent = '✓ Aggiunto!';
