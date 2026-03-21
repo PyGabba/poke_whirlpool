@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 const url = `https://poke-whp.onrender.com`; // Render URL
 const interval = 300000; // Interval in milliseconds (300 seconds)
 
