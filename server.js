@@ -39,47 +39,49 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: 'pokewhirlpool-secret', resave: false, saveUninitialized: true }));
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
-// ── Mailer (port 465 + SSL, works on Render) ─────────────────────────────────
-function createMailer() {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn('⚠️  SMTP env vars not set — rejection emails disabled.');
-    return null;
-  }
-  return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST,
-    port:   parseInt(process.env.SMTP_PORT || '465'),
-    secure: process.env.SMTP_PORT ? process.env.SMTP_SECURE === 'true' : true, // 465 = SSL
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
-const mailer = createMailer();
-
+// ── Resend email (HTTPS API — works on Render) ───────────────────────────────
 async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
-  if (!to || !mailer) return;
+  if (!to) return;
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️  RESEND_API_KEY not set — rejection emails disabled.');
+    return;
+  }
+
   const refundNote = paymentMethod === 'paypal'
     ? 'Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.'
     : paymentMethod === 'satispay'
     ? 'Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.'
     : 'Contattaci per il rimborso.';
 
-  await mailer.sendMail({
-    from:    `"Poke Whirlpool" <${process.env.SMTP_USER}>`,
-    to,
-    subject: `Il tuo ordine #${String(orderNumber).padStart(3,'0')} è stato rifiutato`,
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <h2 style="color:#e8253a">❌ Ordine Rifiutato</h2>
-        <p>Ci dispiace, il tuo ordine <strong>#${String(orderNumber).padStart(3,'0')}</strong> è stato rifiutato.</p>
-        ${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}
-        <div style="background:#fff8f8;border:1px solid #fdd;border-radius:8px;padding:12px;margin-top:16px">
-          <strong>💸 Rimborso</strong><br>${refundNote}
-        </div>
-        <p style="margin-top:20px;color:#888;font-size:0.85rem">Per assistenza rispondi a questa email.</p>
-      </div>`,
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:auto">
+      <h2 style="color:#e8253a">❌ Ordine Rifiutato</h2>
+      <p>Ci dispiace, il tuo ordine <strong>#${String(orderNumber).padStart(3,'0')}</strong> è stato rifiutato.</p>
+      ${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}
+      <div style="background:#fff8f8;border:1px solid #fdd;border-radius:8px;padding:12px;margin-top:16px">
+        <strong>💸 Rimborso</strong><br>${refundNote}
+      </div>
+      <p style="margin-top:20px;color:#888;font-size:0.85rem">Per assistenza rispondi a questa email.</p>
+    </div>`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method:  'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type':  'application/json',
+    },
+    body: JSON.stringify({
+      from:    process.env.RESEND_FROM || 'Poke Whirlpool <onboarding@resend.dev>',
+      to:      [to],
+      subject: `Il tuo ordine #${String(orderNumber).padStart(3,'0')} è stato rifiutato`,
+      html,
+    }),
   });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Resend API error: ${err}`);
+  }
 }
 
 // ── In-memory orders (same as before) ────────────────────────────────────────
