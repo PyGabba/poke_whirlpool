@@ -52,7 +52,7 @@ const mailer = nodemailer.createTransport({
 async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
   if (!to) return;
   const refundNote = paymentMethod === 'paypal'
-    ? 'Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.'
+    ? 'Il rimborso verrà accreditato automaticamente sul tuo Paypal entro 24 ore.'
     : paymentMethod === 'satispay'
     ? 'Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.'
     : 'Contattaci per il rimborso.';
