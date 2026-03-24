@@ -39,20 +39,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: 'pokewhirlpool-secret', resave: false, saveUninitialized: true }));
 
 // ── Mailer ────────────────────────────────────────────────────────────────────
-const mailer = nodemailer.createTransport({
-  host:   process.env.SMTP_HOST,
-  port:   parseInt(process.env.SMTP_PORT  || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// ── Mailer (port 465 + SSL, works on Render) ─────────────────────────────────
+function createMailer() {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('⚠️  SMTP env vars not set — rejection emails disabled.');
+    return null;
+  }
+  return nodemailer.createTransport({
+    host:   process.env.SMTP_HOST,
+    port:   parseInt(process.env.SMTP_PORT || '465'),
+    secure: process.env.SMTP_PORT ? process.env.SMTP_SECURE === 'true' : true, // 465 = SSL
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+const mailer = createMailer();
 
 async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
-  if (!to) return;
+  if (!to || !mailer) return;
   const refundNote = paymentMethod === 'paypal'
-    ? 'Il rimborso verrà accreditato automaticamente sul tuo Paypal entro 24 ore.'
+    ? 'Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.'
     : paymentMethod === 'satispay'
     ? 'Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.'
     : 'Contattaci per il rimborso.';
