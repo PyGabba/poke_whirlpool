@@ -694,14 +694,14 @@ function showRejectionModal(order) {
   if (payMethod === 'paypal') {
     refundHTML = `<div class="refund-box refund-paypal">
       <strong>💳 Rimborso PayPal</strong><br>
-      Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.
-      Per assistenza scrivi a <a href="mailto:support@pokewhirlpool.it">support@pokewhirlpool.it</a>
+      Il rimborso verrà accreditato automaticamente sul tuo Paypal entro 24 ore.
+      Per assistenza scrivi a <a href="mailto:gabriele_felici_albelissa@whirlpool.com">gabriele_felici_albelissa@whirlpool.com</a>
     </div>`;
   } else if (payMethod === 'satispay') {
     refundHTML = `<div class="refund-box refund-satispay">
       <strong>💸 Rimborso Satispay</strong><br>
       Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.
-      Per assistenza scrivi a <a href="mailto:support@pokewhirlpool.it">support@pokewhirlpool.it</a>
+      Per assistenza scrivi a <a href="mailto:gabriele_felici_albelissa@whirlpool.com">gabriele_felici_albelissa@whirlpool.com</a>
     </div>`;
   }
   document.getElementById('rejectedRefundInfo').innerHTML = refundHTML;
