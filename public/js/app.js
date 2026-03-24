@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCart();
   setupCustomerCode();
   setupOrder();
+  setupEmailMemory();
 });
 
 async function loadMenu() {
@@ -245,18 +246,19 @@ function setupCart() {
 function openCart()  { document.getElementById('cartDrawer').classList.add('open');    document.getElementById('cartOverlay').classList.add('show'); }
 function closeCart() { document.getElementById('cartDrawer').classList.remove('open'); document.getElementById('cartOverlay').classList.remove('show'); }
 
-async function submitOrder() {
+async function submitOrder(paymentMethod) {
   const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
   const res = await fetch('/api/orders', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      customerName: document.getElementById('customerName').value,
-      customerCode: document.getElementById('customerCode').value.trim().toUpperCase() || null,
+      customerName:  document.getElementById('customerName').value,
+      customerEmail: document.getElementById('customerEmail').value.trim() || null,
       items:        cart,
       total:        total.toFixed(2),
       notes:        document.getElementById('orderNotes').value,
       bacchette:    document.getElementById('bacchette').checked,
+      paymentMethod: paymentMethod || 'unknown',
     }),
   });
   return { data: await res.json(), total };
@@ -270,9 +272,9 @@ function showSuccessModal(orderNumber, name, total) {
   document.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
   updateCartUI();
   document.getElementById('customerName').value  = '';
+  document.getElementById('customerEmail').value = '';
   document.getElementById('orderNotes').value    = '';
   document.getElementById('bacchette').checked   = false;
-  document.getElementById('customerCode').value  = '';
   resetCodeUI();
 }
 
@@ -288,8 +290,8 @@ function setupOrder() {
     btn.disabled = true; btn.querySelector('#satispayBtnText').textContent = 'Invio in corso...';
     const name = document.getElementById('customerName').value;
     try {
-      const { data, total } = await submitOrder();
-      if (data.success) { closeSatispayModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total); }
+      const { data, total } = await submitOrder('satispay');
+      if (data.success) { closeSatispayModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total); startRejectionPolling(data.order.id); }
     } catch(e) { alert("Errore nell'invio. Riprova."); }
     btn.querySelector('#satispayBtnText').textContent = '✓ Ho pagato — Invia ordine';
     btn.disabled = false;
@@ -306,8 +308,8 @@ function setupOrder() {
     btn.disabled = true; btn.querySelector('#paypalBtnText').textContent = 'Invio in corso...';
     const name = document.getElementById('customerName').value;
     try {
-      const { data, total } = await submitOrder();
-      if (data.success) { closePaypalModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total); }
+      const { data, total } = await submitOrder('paypal');
+      if (data.success) { closePaypalModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total); startRejectionPolling(data.order.id); }
     } catch(e) { alert("Errore nell'invio. Riprova."); }
     btn.querySelector('#paypalBtnText').textContent = '✓ Ho pagato — Invia ordine';
     btn.disabled = false;
@@ -395,39 +397,26 @@ function closeSatispayModal() {
 }
 
 // ===== CUSTOMER CODE & HISTORY =====
-let _codeDebounce   = null;
 let _currentHistory = null;
+let _nameDebounce   = null;
 
 function setupCustomerCode() {
-  const input = document.getElementById('customerCode');
-  
-  // Listen for typing
-  input.addEventListener('input', () => {
-    clearTimeout(_codeDebounce);
-    const val = input.value.trim().toUpperCase();
+  const nameInput = document.getElementById('customerName');
+
+  nameInput.addEventListener('input', () => {
+    clearTimeout(_nameDebounce);
+    const val = nameInput.value.trim();
     if (!val) { resetCodeUI(); return; }
-    
-    // Trigger lookupCode after 450ms of no typing
-    if (val.length >= 4) {
-      _codeDebounce = setTimeout(() => lookupCode(val), 450);
+    if (val.length >= 2) {
+      _nameDebounce = setTimeout(() => lookupCode(val), 450);
     } else {
       resetCodeUI();
     }
   });
-
-  // Keep it capitalized when they click away
-  input.addEventListener('blur', () => {
-    const val = input.value.trim().toUpperCase();
-    if (val) input.value = val;
-  });
 }
 
 function resetCodeUI() {
-  const input  = document.getElementById('customerCode');
-  const status = document.getElementById('codeStatus');
-  const panel  = document.getElementById('historyPanel');
-  input.classList.remove('code-found', 'code-new');
-  status.textContent = '';
+  const panel = document.getElementById('historyPanel');
   panel.style.display = 'none';
   panel.innerHTML     = '';
   _currentHistory     = null;
@@ -436,63 +425,24 @@ function resetCodeUI() {
   refreshFavouriteButtons();
 }
 
-async function lookupCode(code) {
-  const input  = document.getElementById('customerCode');
-  const status = document.getElementById('codeStatus');
-  const panel  = document.getElementById('historyPanel');
-  const nameInput = document.getElementById('customerName'); // Matches your HTML ID
-
+async function lookupCode(name) {
+  const panel = document.getElementById('historyPanel');
   try {
-    const res  = await fetch(`/api/customer/${encodeURIComponent(code)}`);
+    const res  = await fetch(`/api/customer/${encodeURIComponent(name)}`);
     const data = await res.json();
-
-    _currentCode = code;
+    _currentCode = name;
     _favourites  = data.favourites || [];
     refreshFavouriteButtons();
-
     if (data.found && data.history.length > 0) {
       _currentHistory = data.history;
-      input.classList.add('code-found');
-      input.classList.remove('code-new');
-      status.textContent = '✓';
-      status.style.color = 'var(--green)';
       renderHistoryPanel(data.history, panel);
       panel.style.display = 'block';
-
-      // --- IMPROVED AUTO-FILL LOGIC ---
-      // 1. Sort history newest-first (just like your history panel does)
-      const sortedHistory = [...data.history].sort((a, b) => new Date(b.date) - new Date(a.date));
-      const lastOrder = sortedHistory[0]; // Get the absolute newest order
-
-      console.log("Ultimo ordine trovato:", lastOrder); // 🐛 Debug info in console
-
-      // 2. Auto-fill if a custom name exists
-      if (lastOrder && lastOrder.customer && lastOrder.customer !== 'Cliente') {
-        console.log("Auto-compilazione nome con:", lastOrder.customer); // 🐛 Debug info
-        nameInput.value = lastOrder.customer;
-        
-        // Visual feedback
-        nameInput.style.backgroundColor = '#e8f5e9';
-        setTimeout(() => nameInput.style.backgroundColor = '', 1000);
-      } else {
-        console.log("Nessun nome personalizzato da auto-compilare. Trovato:", lastOrder?.customer);
-      }
-      // --------------------------------
-
     } else {
       _currentHistory = null;
-      input.classList.add('code-new');
-      input.classList.remove('code-found');
-      status.textContent = '★';
-      status.style.color = 'var(--orange)';
-      panel.style.display = 'block';
-      panel.innerHTML = `
-        <p class="history-panel-title">Codice cliente</p>
-        <p class="history-new-msg">✨ Benvenuto! <strong>${code}</strong>. I tuoi ordini futuri verranno ricordati.</p>
-      `;
+      panel.style.display = 'none';
     }
   } catch (e) {
-    console.error("Errore lookupCode:", e);
+    console.error('Errore lookupCode:', e);
     resetCodeUI();
   }
 }
@@ -502,10 +452,10 @@ function renderHistoryPanel(history, panel) {
   const lastOrder = sorted[0];
 
   const rows = [lastOrder].map((order, idx) => {
-    const date        = new Date(order.date);
-    const dateStr     = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    const timeStr     = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    const itemsSummary = order.items.map(i => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ');
+    const date         = new Date(order.date);
+    const dateStr      = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const timeStr      = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const itemsSummary = order.items.map(i => i.name + (i.qty > 1 ? ' ×' + i.qty : '')).join(', ');
     return `
       <div class="history-order">
         <div class="history-order-header">
@@ -518,7 +468,6 @@ function renderHistoryPanel(history, panel) {
     `;
   }).join('');
 
-  // Render favourites section if any
   const favSection = _favourites.length ? `
     <p class="history-panel-title" style="margin-top:1rem">❤️ I tuoi preferiti</p>
     <div class="fav-list">
@@ -526,8 +475,8 @@ function renderHistoryPanel(history, panel) {
         <div class="fav-item">
           <span class="fav-item-name">${f.name}</span>
           <span class="fav-item-price">€ ${parseFloat(f.price).toFixed(2).replace('.', ',')}</span>
-          <button class="add-btn" onclick="addFavouriteToCart('${f.itemId}','${f.name.replace(/'/g,"\\'")}',${f.price})">+ Aggiungi</button>
-          <button class="remove-fav-btn" onclick="toggleFavourite('${f.itemId}','${f.name.replace(/'/g,"\\'")}','${f.category}',${f.price})">✕</button>
+          <button class="add-btn" onclick="addFavouriteToCart('${f.itemId}','${f.name.replace(/'/g, "\\'")}',${f.price})">+ Aggiungi</button>
+          <button class="remove-fav-btn" onclick="toggleFavourite('${f.itemId}','${f.name.replace(/'/g, "\\'")}','${f.category}',${f.price})">✕</button>
         </div>
       `).join('')}
     </div>
@@ -555,10 +504,8 @@ function reorder(historyIdx) {
       qtyEl.textContent = current + (item.qty || 1);
     }
   });
-  // Restore notes and bacchette from the saved order
   if (order.notes)     document.getElementById('orderNotes').value  = order.notes;
   if (order.bacchette) document.getElementById('bacchette').checked = true;
-
   updateCartUI();
   const btn = event.target;
   btn.textContent = '✓ Aggiunto!';
@@ -568,32 +515,23 @@ function reorder(historyIdx) {
 
 // ===== FAVOURITES =============================================================
 
-/** Check if an item is currently in favourites */
 function isFavourite(itemId) {
   return _favourites.some(f => f.itemId === itemId);
 }
 
-/**
- * Toggle a menu item as favourite.
- * If the customer code hasn't been entered yet, shows a gentle alert.
- */
 async function toggleFavourite(itemId, name, category, price) {
   if (!_currentCode) {
-    alert('Inserisci il tuo codice cliente per salvare i preferiti!');
+    alert('Inserisci il tuo nome per salvare i preferiti!');
     return;
   }
-
   const alreadyFav = isFavourite(itemId);
-
   try {
     if (alreadyFav) {
-      // Remove
-      const res  = await fetch(`/api/customer/${_currentCode}/favourites/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+      const res  = await fetch(`/api/customer/${encodeURIComponent(_currentCode)}/favourites/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
       const data = await res.json();
       _favourites = data.favourites || [];
     } else {
-      // Add
-      const res  = await fetch(`/api/customer/${_currentCode}/favourites`, {
+      const res  = await fetch(`/api/customer/${encodeURIComponent(_currentCode)}/favourites`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ itemId, name, category, price }),
@@ -602,7 +540,6 @@ async function toggleFavourite(itemId, name, category, price) {
       _favourites = data.favourites || [];
     }
     refreshFavouriteButtons();
-    // Re-render the history panel favourites section if it's open
     const panel = document.getElementById('historyPanel');
     if (panel.style.display !== 'none' && _currentHistory) {
       renderHistoryPanel(_currentHistory, panel);
@@ -612,19 +549,15 @@ async function toggleFavourite(itemId, name, category, price) {
   }
 }
 
-/** Re-render all ♥ buttons across the page to reflect current _favourites */
 function refreshFavouriteButtons() {
   document.querySelectorAll('.fav-btn').forEach(btn => {
-    // Extract itemId from the onclick attribute
     const onclick = btn.getAttribute('onclick') || '';
     const match   = onclick.match(/toggleFavourite\('([^']+)'/);
     if (!match) return;
-    const itemId = match[1];
-    btn.classList.toggle('fav-active', isFavourite(itemId));
+    btn.classList.toggle('fav-active', isFavourite(match[1]));
   });
 }
 
-/** Add a favourite item directly to the cart */
 function addFavouriteToCart(itemId, name, price) {
   addToCart({ id: itemId, name, price, detail: '', qty: 1 });
   const el = document.getElementById('qty-' + itemId);
@@ -699,3 +632,84 @@ function addFavouriteToCart(itemId, name, price) {
   tick();
   setInterval(tick, 1000);
 })();
+
+// ===== EMAIL MEMORY ===========================================================
+
+function setupEmailMemory() {
+  const emailInput = document.getElementById('customerEmail');
+  if (!emailInput) return;
+
+  // Restore saved email
+  const saved = localStorage.getItem('poke_customer_email');
+  if (saved) emailInput.value = saved;
+
+  // Save on every change
+  emailInput.addEventListener('input', () => {
+    const val = emailInput.value.trim();
+    if (val) localStorage.setItem('poke_customer_email', val);
+    else     localStorage.removeItem('poke_customer_email');
+  });
+}
+
+// ===== REJECTION POLLING ======================================================
+
+let _pendingOrderId   = null;
+let _rejectionPoller  = null;
+const POLL_INTERVAL   = 10000; // 10 seconds
+
+function startRejectionPolling(orderId) {
+  _pendingOrderId = orderId;
+  stopRejectionPolling();
+  _rejectionPoller = setInterval(checkForRejection, POLL_INTERVAL);
+}
+
+function stopRejectionPolling() {
+  if (_rejectionPoller) { clearInterval(_rejectionPoller); _rejectionPoller = null; }
+}
+
+async function checkForRejection() {
+  if (!_pendingOrderId) return;
+  try {
+    const res  = await fetch(`/api/orders/${_pendingOrderId}/status-check`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.status === 'rejected') {
+      stopRejectionPolling();
+      showRejectionModal(data);
+    } else if (data.status === 'done' || data.status === 'ready') {
+      stopRejectionPolling();
+    }
+  } catch (e) { /* ignore network errors */ }
+}
+
+function showRejectionModal(order) {
+  const reasonText = order.rejectionReason
+    ? `Motivo: <em>${order.rejectionReason}</em>`
+    : '';
+  document.getElementById('rejectedModalText').innerHTML =
+    `Il tuo ordine <strong>#${String(order.orderNumber).padStart(3,'0')}</strong> è stato rifiutato.${reasonText ? '<br>' + reasonText : ''}`;
+
+  const payMethod = order.paymentMethod || '';
+  let refundHTML = '';
+  if (payMethod === 'paypal') {
+    refundHTML = `<div class="refund-box refund-paypal">
+      <strong>💳 Rimborso PayPal</strong><br>
+      Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.
+      Per assistenza scrivi a <a href="mailto:support@pokewhirlpool.it">support@pokewhirlpool.it</a>
+    </div>`;
+  } else if (payMethod === 'satispay') {
+    refundHTML = `<div class="refund-box refund-satispay">
+      <strong>💸 Rimborso Satispay</strong><br>
+      Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.
+      Per assistenza scrivi a <a href="mailto:support@pokewhirlpool.it">support@pokewhirlpool.it</a>
+    </div>`;
+  }
+  document.getElementById('rejectedRefundInfo').innerHTML = refundHTML;
+  document.getElementById('rejectedModal').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('rejectedModalClose').addEventListener('click', () => {
+    document.getElementById('rejectedModal').classList.remove('show');
+  });
+});

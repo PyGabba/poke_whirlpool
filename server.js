@@ -4,6 +4,7 @@ const session   = require('express-session');
 const { v4: uuidv4 } = require('uuid');
 const path      = require('path');
 const mongoose  = require('mongoose');
+const nodemailer = require('nodemailer');
 const Customer  = require('./models/Customer');
 const axios = require('axios');
 
@@ -36,6 +37,42 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: 'pokewhirlpool-secret', resave: false, saveUninitialized: true }));
+
+// ── Mailer ────────────────────────────────────────────────────────────────────
+const mailer = nodemailer.createTransport({
+  host:   process.env.SMTP_HOST,
+  port:   parseInt(process.env.SMTP_PORT  || '587'),
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
+  if (!to) return;
+  const refundNote = paymentMethod === 'paypal'
+    ? 'Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.'
+    : paymentMethod === 'satispay'
+    ? 'Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.'
+    : 'Contattaci per il rimborso.';
+
+  await mailer.sendMail({
+    from:    `"Poke Whirlpool" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Il tuo ordine #${String(orderNumber).padStart(3,'0')} è stato rifiutato`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#e8253a">❌ Ordine Rifiutato</h2>
+        <p>Ci dispiace, il tuo ordine <strong>#${String(orderNumber).padStart(3,'0')}</strong> è stato rifiutato.</p>
+        ${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}
+        <div style="background:#fff8f8;border:1px solid #fdd;border-radius:8px;padding:12px;margin-top:16px">
+          <strong>💸 Rimborso</strong><br>${refundNote}
+        </div>
+        <p style="margin-top:20px;color:#888;font-size:0.85rem">Per assistenza rispondi a questa email.</p>
+      </div>`,
+  });
+}
 
 // ── In-memory orders (same as before) ────────────────────────────────────────
 const orders = [];
@@ -183,41 +220,41 @@ app.get('/api/menu', (req, res) => res.json(menu));
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 app.post('/api/orders', async (req, res) => {
-  const { customerName, tableNumber, items, total, notes, bacchette, customerCode } = req.body;
-  const code = customerCode ? customerCode.trim().toUpperCase() : null;
+  const { customerName, tableNumber, items, total, notes, bacchette, customerEmail, paymentMethod } = req.body;
+  const customer = customerName ? customerName.trim() : null;
 
   const order = {
-    id:           uuidv4(),
-    orderNumber:  orders.length + 1,
-    customerName: customerName || 'Cliente',
-    customerCode: code || null,
-    tableNumber:  tableNumber || '-',
+    id:            uuidv4(),
+    orderNumber:   orders.length + 1,
+    customerName:  customer || 'Cliente',
+    customerEmail: customerEmail || null,
+    paymentMethod: paymentMethod || 'unknown',
+    tableNumber:   tableNumber || '-',
     items, total, notes, bacchette: !!bacchette,
-    status:       'pending',
-    createdAt:    new Date().toISOString(),
+    status:        'pending',
+    createdAt:     new Date().toISOString(),
   };
   orders.push(order);
 
   // Persist order history to MongoDB
-  if (code) {
+  if (customer) {
     try {
-      await Customer.findOneAndUpdate(
-        { code },
-        {
-          $push: {
-            orderHistory: {
-              orderNumber: order.orderNumber,
-              customer:    order.customerName,
-              date:        order.createdAt,
-              items:       order.items,
-              total:       parseFloat(order.total),
-              notes:       order.notes || '',
-              bacchette:   !!bacchette,
-            },
-          },
-        },
-        { upsert: true, new: true }
-      );
+      const historyEntry = {
+        orderNumber: order.orderNumber,
+        customer:    order.customerName,
+        date:        order.createdAt,
+        items:       order.items,
+        total:       parseFloat(order.total),
+        notes:       order.notes || '',
+        bacchette:   !!bacchette,
+      };
+      let doc = await Customer.findOne({ 'orderHistory.customer': customer });
+      if (doc) {
+        doc.orderHistory.push(historyEntry);
+        await doc.save();
+      } else {
+        await Customer.create({ orderHistory: [historyEntry], favourites: [] });
+      }
     } catch (err) {
       console.error('Failed to save order history:', err.message);
     }
@@ -240,19 +277,49 @@ app.patch('/api/orders/:id/status', (req, res) => {
   res.json({ success: true, order });
 });
 
-// ── Customer: get history + favourites ────────────────────────────────────────
-app.get('/api/customer/:code', async (req, res) => {
-  const code = req.params.code.trim().toUpperCase();
+app.patch('/api/orders/:id/reject', async (req, res) => {
+  const order = orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  order.status = 'rejected';
+  order.rejectionReason = req.body.reason || '';
   try {
-    const customer = await Customer.findOne({ code });
-    if (!customer) {
-      return res.json({ code, found: false, history: [], favourites: [] });
+    await sendRejectionEmail({
+      to:            order.customerEmail,
+      orderNumber:   order.orderNumber,
+      reason:        order.rejectionReason,
+      paymentMethod: order.paymentMethod,
+    });
+    console.log(`📧  Rejection email sent to ${order.customerEmail}`);
+  } catch (e) {
+    console.error('Email send error:', e.message);
+  }
+  res.json({ success: true, order });
+});
+
+app.get('/api/orders/:id/status-check', (req, res) => {
+  const order = orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Not found' });
+  res.json({
+    status:          order.status,
+    orderNumber:     order.orderNumber,
+    rejectionReason: order.rejectionReason || '',
+    paymentMethod:   order.paymentMethod   || '',
+  });
+});
+
+// ── Customer: get history + favourites ────────────────────────────────────────
+app.get('/api/customer/:name', async (req, res) => {
+  const customer = req.params.name.trim();
+  try {
+    const doc = await Customer.findOne({ 'orderHistory.customer': customer });
+    if (!doc) {
+      return res.json({ customer, found: false, history: [], favourites: [] });
     }
     res.json({
-      code,
-      found:      customer.orderHistory.length > 0,
-      history:    customer.orderHistory,
-      favourites: customer.favourites,
+      customer,
+      found:      doc.orderHistory.length > 0,
+      history:    doc.orderHistory,
+      favourites: doc.favourites,
     });
   } catch (err) {
     console.error('Customer lookup error:', err.message);
@@ -261,31 +328,22 @@ app.get('/api/customer/:code', async (req, res) => {
 });
 
 // ── Favourites: add ───────────────────────────────────────────────────────────
-// POST /api/customer/:code/favourites
-// Body: { itemId, name, category, price }
-app.post('/api/customer/:code/favourites', async (req, res) => {
-  const code = req.params.code.trim().toUpperCase();
-  const { itemId, name, category = '', price = 0 } = req.body;
-
-  if (!itemId || !name) {
+app.post('/api/customer/:name/favourites', async (req, res) => {
+  const customer = req.params.name.trim();
+  const { itemId, name: itemName, category = '', price = 0 } = req.body;
+  if (!itemId || !itemName) {
     return res.status(400).json({ error: 'itemId and name are required' });
   }
-
   try {
-    // $addToSet on a sub-document array won't deduplicate by nested field,
-    // so we use findOneAndUpdate with $pull + $push to guarantee uniqueness by itemId.
-    const customer = await Customer.findOneAndUpdate(
-      { code },
-      { $pull: { favourites: { itemId } } },   // remove if already present
-      { upsert: true, new: true }
-    );
-    await Customer.findOneAndUpdate(
-      { code },
-      { $push: { favourites: { itemId, name, category, price } } },
-      { new: true }
-    );
-    const updated = await Customer.findOne({ code });
-    res.json({ success: true, favourites: updated.favourites });
+    let doc = await Customer.findOne({ 'orderHistory.customer': customer });
+    if (!doc) {
+      doc = await Customer.create({ orderHistory: [], favourites: [] });
+    }
+    // Remove existing entry with same itemId (dedup), then add
+    doc.favourites = doc.favourites.filter(f => f.itemId !== itemId);
+    doc.favourites.push({ itemId, name: itemName, category, price });
+    await doc.save();
+    res.json({ success: true, favourites: doc.favourites });
   } catch (err) {
     console.error('Add favourite error:', err.message);
     res.status(500).json({ error: 'Database error' });
@@ -293,19 +351,17 @@ app.post('/api/customer/:code/favourites', async (req, res) => {
 });
 
 // ── Favourites: remove ────────────────────────────────────────────────────────
-// DELETE /api/customer/:code/favourites/:itemId
-app.delete('/api/customer/:code/favourites/:itemId', async (req, res) => {
-  const code   = req.params.code.trim().toUpperCase();
-  const itemId = req.params.itemId;
-
+app.delete('/api/customer/:name/favourites/:itemId', async (req, res) => {
+  const customer = req.params.name.trim();
+  const itemId   = req.params.itemId;
   try {
-    const customer = await Customer.findOneAndUpdate(
-      { code },
+    const doc = await Customer.findOneAndUpdate(
+      { 'orderHistory.customer': customer },
       { $pull: { favourites: { itemId } } },
       { new: true }
     );
-    if (!customer) return res.status(404).json({ error: 'Customer not found' });
-    res.json({ success: true, favourites: customer.favourites });
+    if (!doc) return res.status(404).json({ error: 'Customer not found' });
+    res.json({ success: true, favourites: doc.favourites });
   } catch (err) {
     console.error('Remove favourite error:', err.message);
     res.status(500).json({ error: 'Database error' });
@@ -313,18 +369,16 @@ app.delete('/api/customer/:code/favourites/:itemId', async (req, res) => {
 });
 
 // ── Favourites: list ──────────────────────────────────────────────────────────
-// GET /api/customer/:code/favourites
-app.get('/api/customer/:code/favourites', async (req, res) => {
-  const code = req.params.code.trim().toUpperCase();
+app.get('/api/customer/:name/favourites', async (req, res) => {
+  const customer = req.params.name.trim();
   try {
-    const customer = await Customer.findOne({ code });
-    if (!customer) return res.json({ code, favourites: [] });
-    res.json({ code, favourites: customer.favourites });
+    const doc = await Customer.findOne({ 'orderHistory.customer': customer });
+    if (!doc) return res.json({ customer, favourites: [] });
+    res.json({ customer, favourites: doc.favourites });
   } catch (err) {
     console.error('Get favourites error:', err.message);
     res.status(500).json({ error: 'Database error' });
   }
 });
-
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => console.log(`🍣  Poke Whirlpool running at http://localhost:${PORT}`));

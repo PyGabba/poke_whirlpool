@@ -140,6 +140,8 @@
     .btn-start   { background: #fff3e0; color: #e65100; }
     .btn-ready   { background: #e8f5e9; color: #2e7d32; }
     .btn-archive { background: #f0f0f0; color: #777; }
+    .btn-reject  { background: #fde8e8; color: #c62828; margin-top: 4px; }
+    .order-action-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 
     /* ── OTHER (non-poke) row ── */
     .other-row { background: #fffde7 !important; }
@@ -219,7 +221,8 @@ function rowsForOrder(order) {
 
   let actionBtn = '';
   if (order.status === 'pending' || order.status === 'received') {
-    actionBtn = `<button class="action-btn btn-start"  onclick="updateStatus('${order.id}','preparing')">🔥 Prepara</button>`;
+    actionBtn = `<button class="action-btn btn-start"  onclick="updateStatus('${order.id}','preparing')">🔥 Prepara</button>
+                 <button class="action-btn btn-reject"  onclick="rejectOrder('${order.id}')">❌ Rifiuta</button>`;
   } else if (order.status === 'preparing') {
     actionBtn = `<button class="action-btn btn-ready"  onclick="updateStatus('${order.id}','ready')">✅ Pronto</button>`;
   } else if (order.status === 'ready') {
@@ -246,7 +249,7 @@ function rowsForOrder(order) {
     // On the first row of this order: allergy + status + action span all rows
     const orderMeta = [
       `<strong>#${String(order.orderNumber).padStart(3,'0')}</strong>`,
-      order.customerCode ? `🪪 ${order.customerCode}` : null,
+      
       `${date} ${time}`,
     ].filter(Boolean).join(' · ');
 
@@ -326,7 +329,7 @@ function rowsForOrder(order) {
       const orderMeta = [
         `<strong>#${String(order.orderNumber).padStart(3,'0')}</strong>`,
         order.tableNumber && order.tableNumber !== '-' ? `🪑 T.${order.tableNumber}` : null,
-        order.customerCode ? `🪪 ${order.customerCode}` : null,
+        
         `${date} ${time}`,
       ].filter(Boolean).join(' · ');
 
@@ -358,7 +361,7 @@ async function loadOrders() {
     const orders = await res.json();
 
     const active = orders
-      .filter(o => o.status !== 'done')
+      .filter(o => o.status !== 'done' && o.status !== 'rejected')
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const page = document.getElementById('page');
@@ -401,6 +404,17 @@ async function updateStatus(id, status) {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
+  });
+  loadOrders();
+}
+
+async function rejectOrder(id) {
+  const reason = prompt('Motivo del rifiuto (lascia vuoto se non vuoi specificarlo):');
+  if (reason === null) return; // cancelled
+  await fetch(`/api/orders/${id}/reject`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason.trim() }),
   });
   loadOrders();
 }

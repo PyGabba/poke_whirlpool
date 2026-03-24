@@ -96,7 +96,9 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--dar
 .cart-item-actions { display: flex; align-items: center; justify-content: flex-end; margin-top: 0.5rem; }
 .remove-btn { background: none; border: none; color: var(--light); font-size: 0.8rem; cursor: pointer; padding: 0.2rem 0.5rem; border-radius: 6px; transition: all 0.15s; }
 .remove-btn:hover { background: #ffe0e0; color: var(--red); }
-.cart-footer { background: #fff; border-top: 2px solid var(--border); padding: 1rem 1.5rem 1.5rem; }
+.cart-footer { background: #fff; border-top: 2px solid var(--border); padding: 1rem 1.5rem 1.5rem; overflow-y: auto; max-height: 55vh; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.cart-footer::-webkit-scrollbar { width: 4px; }
+.cart-footer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .cart-info { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
 .cart-info input, .cart-info textarea { padding: 0.6rem 0.85rem; border: 2px solid var(--border); border-radius: 8px; font-family: var(--font-body); font-size: 0.9rem; transition: border-color 0.2s; resize: none; }
 .cart-info input:focus, .cart-info textarea:focus { outline: none; border-color: var(--red); }
@@ -227,26 +229,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--dar
 .satispay-confirm-btn:disabled { background: #7ab8a0; cursor: not-allowed; transform: none; }
 .satispay-confirm-btn:disabled .satispay-timer { background: rgba(255,255,255,0.35); }
 
-/* ===== CUSTOMER CODE & HISTORY ===== */
-.code-input-wrap {
-  position: relative; display: flex; align-items: center;
-}
-.code-input-wrap input {
-  flex: 1; padding: 0.6rem 2.2rem 0.6rem 0.85rem;
-  border: 2px solid var(--border); border-radius: 8px;
-  font-family: var(--font-body); font-size: 0.9rem;
-  text-transform: uppercase; letter-spacing: 0.05em;
-  transition: border-color 0.2s;
-}
-.code-input-wrap input:focus { outline: none; border-color: var(--red); }
-.code-input-wrap input.code-found { border-color: var(--green); }
-.code-input-wrap input.code-new { border-color: var(--orange); }
-.code-status {
-  position: absolute; right: 0.6rem;
-  font-size: 1rem; line-height: 1; pointer-events: none;
-  transition: opacity 0.2s;
-}
-
+/* ===== CUSTOMER HISTORY ===== */
 .history-panel {
   background: #f7f2ec; border: 2px solid var(--border);
   border-radius: 10px; padding: 0.85rem; margin-top: 0;
@@ -407,3 +390,18 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--dar
 .bacchette-label input[type="checkbox"] { accent-color: var(--red); width: 1.1rem; height: 1.1rem; cursor: pointer; }
 .bacchette-label input[type="checkbox"]:checked ~ span { font-weight: 600; }
 .bacchette-icon { font-size: 1.15rem; }
+
+/* ── Rejection modal ─────────────────────────────────────────────────────── */
+.rejected-modal h2 { color: #c62828; }
+.rejected-modal .modal-icon { font-size: 2.5rem; }
+.refund-box {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: left;
+}
+.refund-paypal   { background: #e8f0fb; border: 1px solid #b3c6f0; color: #1a3a6b; }
+.refund-satispay { background: #fef3e2; border: 1px solid #f5c96a; color: #7a4800; }
+.refund-box a    { color: inherit; font-weight: 600; }
