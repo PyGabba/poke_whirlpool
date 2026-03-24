@@ -695,13 +695,13 @@ function showRejectionModal(order) {
     refundHTML = `<div class="refund-box refund-paypal">
       <strong>💳 Rimborso PayPal</strong><br>
       Il rimborso verrà accreditato automaticamente sul tuo Paypal entro 24 ore.
-      Per assistenza scrivi a <a href="mailto:gabriele_felici_albelissa@whirlpool.com">gabriele_felici_albelissa@whirlpool.com</a>
+      Per assistenza scrivi a <a href="mailto:pygabba@gmail.com">Gabriele Felici</a>
     </div>`;
   } else if (payMethod === 'satispay') {
     refundHTML = `<div class="refund-box refund-satispay">
       <strong>💸 Rimborso Satispay</strong><br>
       Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.
-      Per assistenza scrivi a <a href="mailto:gabriele_felici_albelissa@whirlpool.com">gabriele_felici_albelissa@whirlpool.com</a>
+      Per assistenza scrivi a <a href="mailto:pygabba@gmail.com">Gabriele Felici</a>
     </div>`;
   }
   document.getElementById('rejectedRefundInfo').innerHTML = refundHTML;
