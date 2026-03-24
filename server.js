@@ -38,17 +38,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: 'pokewhirlpool-secret', resave: false, saveUninitialized: true }));
 
-// ── Mailer ────────────────────────────────────────────────────────────────────
-// ── Resend email (HTTPS API — works on Render) ───────────────────────────────
+// ── Mailer (Brevo HTTPS API — works on Render) ───────────────────────────────
 async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
   if (!to) return;
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('⚠️  RESEND_API_KEY not set — rejection emails disabled.');
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('⚠️  BREVO_API_KEY not set — rejection emails disabled.');
     return;
   }
 
   const refundNote = paymentMethod === 'paypal'
-    ? 'Il rimborso verrà elaborato sul tuo account PayPal entro 3–5 giorni lavorativi.'
+    ? 'Il rimborso verrà accreditato automaticamente sul tuo PayPal entro 24 ore.'
     : paymentMethod === 'satispay'
     ? 'Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.'
     : 'Contattaci per il rimborso.';
@@ -64,24 +63,21 @@ async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
       <p style="margin-top:20px;color:#888;font-size:0.85rem">Per assistenza rispondi a questa email.</p>
     </div>`;
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type':  'application/json',
+  await axios.post(
+    'https://api.brevo.com/v3/smtp/email',
+    {
+      sender:      { name: 'Poke Whirlpool', email: process.env.BREVO_FROM },
+      to:          [{ email: to }],
+      subject:     `Il tuo ordine #${String(orderNumber).padStart(3,'0')} è stato rifiutato`,
+      htmlContent: html,
     },
-    body: JSON.stringify({
-      from:    process.env.RESEND_FROM || 'Poke Whirlpool <onboarding@resend.dev>',
-      to:      [to],
-      subject: `Il tuo ordine #${String(orderNumber).padStart(3,'0')} è stato rifiutato`,
-      html,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Resend API error: ${err}`);
-  }
+    {
+      headers: {
+        'api-key':      process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 }
 
 // ── In-memory orders (same as before) ────────────────────────────────────────
