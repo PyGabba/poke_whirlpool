@@ -36,6 +36,7 @@
     .bulk-btn:hover { opacity: 0.8; }
     .bulk-prepare { background: #fff3e0; color: #e65100; }
     .bulk-reject  { background: #fde8e8; color: #c62828; }
+    .bulk-archive { background: #f0f0f0; color: #555; }
     .auto-label { font-size: 0.8rem; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; }
     #last-update { font-size: 0.75rem; color: #888; }
 
@@ -165,7 +166,7 @@
 <header>
   <h1>Poke <span>Garden</span> <small style="font-family:'DM Sans',sans-serif;font-size:0.7rem;font-weight:400;color:#aaa;margin-left:6px">cucina</small></h1>
   <div class="header-right">
-    <button class="bulk-btn bulk-prepare" onclick="prepareAll()">🔥 Prepara tutti</button>
+    <button class="bulk-btn bulk-prepare" id="btn-prepare-archive" onclick="prepareOrArchiveAll()">🔥 Prepara tutti</button>
     <button class="bulk-btn bulk-reject"  onclick="rejectAll()">❌ Rifiuta tutti</button>
     <label class="auto-label">
       <input type="checkbox" id="auto-refresh" checked onchange="toggleAuto()" />
@@ -404,25 +405,57 @@ async function loadOrders() {
 
     document.getElementById('last-update').textContent =
       new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    updatePrepareArchiveBtn(orders);
   } catch(e) {
     document.getElementById('page').innerHTML = '<div class="empty-state" style="color:#e8253a">⚠️ Errore nel caricamento ordini</div>';
   }
 }
 
-async function prepareAll() {
+async function prepareOrArchiveAll() {
   const res = await fetch('/api/orders');
   const orders = await res.json();
-  const pending = orders.filter(o => o.status === 'pending' || o.status === 'received');
-  if (pending.length === 0) return alert('Nessun ordine da preparare.');
-  if (!confirm(`Metti in preparazione ${pending.length} ordine/i?`)) return;
-  await Promise.all(pending.map(o =>
-    fetch(`/api/orders/${o.id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'preparing' }),
-    })
-  ));
+  const active = orders.filter(o => o.status !== 'done' && o.status !== 'rejected');
+  const pending = active.filter(o => o.status === 'pending' || o.status === 'received');
+  const preparing = active.filter(o => o.status === 'preparing' || o.status === 'ready');
+
+  if (pending.length > 0) {
+    // Fase 1: metti tutti in preparazione
+    if (!confirm(`Metti in preparazione ${pending.length} ordine/i?`)) return;
+    await Promise.all(pending.map(o =>
+      fetch(`/api/orders/${o.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'preparing' }),
+      })
+    ));
+  } else if (preparing.length > 0) {
+    // Fase 2: archivia tutti
+    if (!confirm(`Archivia ${preparing.length} ordine/i completati?`)) return;
+    await Promise.all(preparing.map(o =>
+      fetch(`/api/orders/${o.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' }),
+      })
+    ));
+  } else {
+    alert('Nessun ordine attivo.');
+  }
   loadOrders();
+}
+
+function updatePrepareArchiveBtn(orders) {
+  const btn = document.getElementById('btn-prepare-archive');
+  if (!btn) return;
+  const active = orders.filter(o => o.status !== 'done' && o.status !== 'rejected');
+  const hasPending = active.some(o => o.status === 'pending' || o.status === 'received');
+  if (hasPending || active.length === 0) {
+    btn.textContent = '🔥 Prepara tutti';
+    btn.className = 'bulk-btn bulk-prepare';
+  } else {
+    btn.textContent = '🗑 Archivia tutti';
+    btn.className = 'bulk-btn bulk-archive';
+  }
 }
 
 async function rejectAll() {
