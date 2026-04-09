@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
@@ -10,159 +9,155 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background: #f0f0f0; color: #111; font-size: 14px; }
 
-```
-/* ── HEADER ── */
-header {
-  background: #1a1a2e; color: white;
-  padding: 12px 20px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-header h1 { font-family: 'Pacifico', cursive; font-size: 1.3rem; }
-header h1 span { color: #f5c518; }
-.header-right { display: flex; align-items: center; gap: 12px; }
-.refresh-btn {
-  background: #e8253a; color: white; border: none;
-  padding: 6px 16px; border-radius: 50px;
-  font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600;
-  cursor: pointer; transition: background 0.15s;
-}
-.refresh-btn:hover { background: #c01e30; }
-.bulk-btn {
-  border: none; border-radius: 50px;
-  padding: 6px 16px;
-  font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600;
-  cursor: pointer; transition: background 0.15s;
-}
-.bulk-prepare { background: #fff3e0; color: #e65100; }
-.bulk-prepare:hover { background: #ffe0b2; }
-.bulk-reject  { background: #fde8e8; color: #c62828; }
-.bulk-reject:hover  { background: #ffcdd2; }
-.auto-label { font-size: 0.8rem; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; }
-#last-update { font-size: 0.75rem; color: #888; }
+    /* ── HEADER ── */
+    header {
+      background: #1a1a2e; color: white;
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    header h1 { font-family: 'Pacifico', cursive; font-size: 1.3rem; }
+    header h1 span { color: #f5c518; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .refresh-btn {
+      background: #e8253a; color: white; border: none;
+      padding: 6px 16px; border-radius: 50px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .refresh-btn:hover { background: #c01e30; }
+    .bulk-btn {
+      border: none; border-radius: 50px;
+      padding: 6px 16px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .bulk-btn:hover { opacity: 0.8; }
+    .bulk-prepare { background: #fff3e0; color: #e65100; }
+    .bulk-reject  { background: #fde8e8; color: #c62828; }
+    .auto-label { font-size: 0.8rem; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    #last-update { font-size: 0.75rem; color: #888; }
 
-/* ── PAGE ── */
-.page { padding: 20px; }
-.empty-state { text-align: center; padding: 60px 20px; color: #aaa; font-size: 1rem; }
+    /* ── PAGE ── */
+    .page { padding: 20px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #aaa; font-size: 1rem; }
 
-/* ── SINGLE TABLE WRAP ── */
-.poke-table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-table {
-  width: 100%; border-collapse: collapse;
-  background: white; font-size: 13px;
-  min-width: 900px;
-}
-thead tr { background: #e8a020; }
-thead th {
-  padding: 10px 12px; text-align: left;
-  font-weight: 700; color: #fff;
-  border-right: 1px solid rgba(255,255,255,0.25);
-  white-space: nowrap;
-}
-thead th:last-child { border-right: none; }
+    /* ── SINGLE TABLE WRAP ── */
+    .poke-table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: white; font-size: 13px;
+      min-width: 900px;
+    }
+    thead tr { background: #e8a020; }
+    thead th {
+      padding: 10px 12px; text-align: left;
+      font-weight: 700; color: #fff;
+      border-right: 1px solid rgba(255,255,255,0.25);
+      white-space: nowrap;
+    }
+    thead th:last-child { border-right: none; }
 
-tbody tr { border-bottom: 1px solid #e8e8e8; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:nth-child(even) { background: #fafafa; }
-tbody tr:hover { background: #fff8f0; }
+    tbody tr { border-bottom: 1px solid #e8e8e8; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #fff8f0; }
 
-td {
-  padding: 10px 12px; vertical-align: middle;
-  border-right: 1px solid #ececec;
-}
-td:last-child { border-right: none; }
+    td {
+      padding: 10px 12px; vertical-align: middle;
+      border-right: 1px solid #ececec;
+    }
+    td:last-child { border-right: none; }
 
-/* Name cell */
-.td-name { font-style: italic; font-weight: 700; font-size: 0.95rem; white-space: nowrap; min-width: 90px; }
+    /* Name cell */
+    .td-name { font-style: italic; font-weight: 700; font-size: 0.95rem; white-space: nowrap; min-width: 90px; }
 
-/* Size badge */
-.size-badge {
-  display: inline-block; padding: 3px 10px; border-radius: 50px;
-  font-size: 0.75rem; font-weight: 600;
-}
-.size-small        { background: #e3f2fd; color: #1565c0; }
-.size-regular      { background: #f3e5f5; color: #6a1b9a; }
-.size-large        { background: #fce4ec; color: #880e4f; }
-.size-tradizionale { background: #fff8e1; color: #e65100; border: 1px solid #ffcc02; }
+    /* Size badge */
+    .size-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .size-small        { background: #e3f2fd; color: #1565c0; }
+    .size-regular      { background: #f3e5f5; color: #6a1b9a; }
+    .size-large        { background: #fce4ec; color: #880e4f; }
+    .size-tradizionale { background: #fff8e1; color: #e65100; border: 1px solid #ffcc02; }
 
-/* Base badge */
-.base-badge {
-  background: #e3f2fd; color: #1565c0;
-  display: inline-block; padding: 3px 10px; border-radius: 50px;
-  font-size: 0.75rem; font-weight: 500;
-}
+    /* Base badge */
+    .base-badge {
+      background: #e3f2fd; color: #1565c0;
+      display: inline-block; padding: 3px 10px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500;
+    }
 
-/* Protein tags */
-.protein-tag {
-  display: inline-block; padding: 3px 9px; border-radius: 50px;
-  font-size: 0.75rem; font-weight: 600; margin: 2px;
-}
-.protein-plain { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
-.protein-extra { background: #e8253a; color: white; }
+    /* Protein tags */
+    .protein-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 600; margin: 2px;
+    }
+    .protein-plain { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
+    .protein-extra { background: #e8253a; color: white; }
 
-/* Veggie tags */
-.veggie-tag {
-  display: inline-block; padding: 3px 9px; border-radius: 50px;
-  font-size: 0.75rem; font-weight: 500; margin: 2px;
-  background: #2e7d32; color: white;
-}
+    /* Veggie tags */
+    .veggie-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500; margin: 2px;
+      background: #2e7d32; color: white;
+    }
 
-/* Sauce tags */
-.sauce-tag {
-  display: inline-block; padding: 3px 9px; border-radius: 50px;
-  font-size: 0.75rem; font-weight: 500; margin: 2px;
-  background: #ff7043; color: white;
-}
+    /* Sauce tags */
+    .sauce-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500; margin: 2px;
+      background: #ff7043; color: white;
+    }
 
-/* Topping tags */
-.topping-tag {
-  display: inline-block; padding: 3px 9px; border-radius: 50px;
-  font-size: 0.75rem; font-weight: 500; margin: 2px;
-}
-.topping-plain { background: #7b1fa2; color: white; }
-.topping-extra { background: #e8253a; color: white; }
+    /* Topping tags */
+    .topping-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500; margin: 2px;
+    }
+    .topping-plain { background: #7b1fa2; color: white; }
+    .topping-extra { background: #e8253a; color: white; }
 
-/* Bacchette (chopsticks) checkbox */
-.td-chopsticks { text-align: center; min-width: 70px; }
-.chopstick-check {
-  width: 20px; height: 20px; accent-color: #1a1a2e;
-  cursor: default; pointer-events: none;
-}
+    /* Bacchette (chopsticks) checkbox */
+    .td-chopsticks { text-align: center; min-width: 70px; }
+    .chopstick-check {
+      width: 20px; height: 20px; accent-color: #1a1a2e;
+      cursor: default; pointer-events: none;
+    }
 
-/* Allergy cell */
-.td-allergy { font-size: 0.8rem; color: #c62828; font-weight: 600; min-width: 120px; }
+    /* Allergy cell */
+    .td-allergy { font-size: 0.8rem; color: #c62828; font-weight: 600; min-width: 120px; }
 
-/* ── ORDER STATUS / ACTION ── */
-.status-pill {
-  font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 50px;
-  text-transform: uppercase; letter-spacing: 0.05em;
-}
-.pill-received  { background: #fffde7; color: #856404; border: 1px solid #f5c518; }
-.pill-preparing { background: #fff3e0; color: #e65100; border: 1px solid #ff9800; }
-.pill-ready     { background: #e8f5e9; color: #2e7d32; border: 1px solid #4caf50; }
+    /* ── ORDER STATUS / ACTION ── */
+    .status-pill {
+      font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 50px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .pill-received  { background: #fffde7; color: #856404; border: 1px solid #f5c518; }
+    .pill-preparing { background: #fff3e0; color: #e65100; border: 1px solid #ff9800; }
+    .pill-ready     { background: #e8f5e9; color: #2e7d32; border: 1px solid #4caf50; }
 
-.order-action-cell { padding: 6px 10px; white-space: nowrap; }
-.action-btn {
-  padding: 5px 12px; border: none; border-radius: 8px;
-  font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600;
-  cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
-}
-.action-btn:hover { opacity: 0.8; }
-.btn-start   { background: #fff3e0; color: #e65100; }
-.btn-ready   { background: #e8f5e9; color: #2e7d32; }
-.btn-archive { background: #f0f0f0; color: #777; }
-.btn-reject  { background: #fde8e8; color: #c62828; margin-top: 4px; }
-.order-action-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+    .order-action-cell { padding: 6px 10px; white-space: nowrap; }
+    .action-btn {
+      padding: 5px 12px; border: none; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+    }
+    .action-btn:hover { opacity: 0.8; }
+    .btn-start   { background: #fff3e0; color: #e65100; }
+    .btn-ready   { background: #e8f5e9; color: #2e7d32; }
+    .btn-archive { background: #f0f0f0; color: #777; }
+    .btn-reject  { background: #fde8e8; color: #c62828; margin-top: 4px; }
+    .order-action-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 
-/* ── OTHER (non-poke) row ── */
-.other-row { background: #fffde7 !important; }
-.other-row-cell { font-size: 0.8rem; padding: 7px 12px; color: #555; }
+    /* ── OTHER (non-poke) row ── */
+    .other-row { background: #fffde7 !important; }
+    .other-row-cell { font-size: 0.8rem; padding: 7px 12px; color: #555; }
 
-/* Top border between orders */
-tr.order-first-row td { border-top: 2px solid #d0d0d0; }
-```
-
+    /* Top border between orders */
+    tr.order-first-row td { border-top: 2px solid #d0d0d0; }
   </style>
 </head>
 <body>
@@ -239,9 +234,9 @@ function rowsForOrder(order) {
   if (order.status === 'pending' || order.status === 'received') {
     actionBtn = `<span class="status-pill pill-received">⏳ Ricevuto</span>`;
   } else if (order.status === 'preparing') {
-    actionBtn = `<button class="action-btn btn-ready"  onclick="updateStatus('${order.id}','ready')">✅ Pronto</button>`;
+    actionBtn = `<span class="status-pill pill-preparing">🔥 In preparazione</span>`;
   } else if (order.status === 'ready') {
-    actionBtn = `<button class="action-btn btn-archive" onclick="updateStatus('${order.id}','done')">🗑 Archivia</button>`;
+    actionBtn = `<span class="status-pill pill-ready">✅ Pronto</span>`;
   }
 
   const pokeItems  = order.items.filter(i => isPokeItem(i));
@@ -370,39 +365,6 @@ function rowsForOrder(order) {
   return itemRows + otherRow;
 }
 
-async function prepareAll() {
-  const res = await fetch('/api/orders');
-  const orders = await res.json();
-  const pending = orders.filter(o => o.status === 'pending' || o.status === 'received');
-  if (pending.length === 0) return alert('Nessun ordine da preparare.');
-  if (!confirm(`Metti in preparazione ${pending.length} ordine/i?`)) return;
-  await Promise.all(pending.map(o =>
-    fetch(`/api/orders/${o.id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'preparing' }),
-    })
-  ));
-  loadOrders();
-}
-
-async function rejectAll() {
-  const res = await fetch('/api/orders');
-  const orders = await res.json();
-  const pending = orders.filter(o => o.status === 'pending' || o.status === 'received');
-  if (pending.length === 0) return alert('Nessun ordine da rifiutare.');
-  if (!confirm(`Rifiuta ${pending.length} ordine/i in attesa?`)) return;
-  const reason = prompt('Motivo del rifiuto (lascia vuoto per non specificare):') ?? '';
-  await Promise.all(pending.map(o =>
-    fetch(`/api/orders/${o.id}/reject`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: reason.trim() }),
-    })
-  ));
-  loadOrders();
-}
-
 async function loadOrders() {
   try {
     const res = await fetch('/api/orders');
@@ -447,22 +409,44 @@ async function loadOrders() {
   }
 }
 
+async function prepareAll() {
+  const res = await fetch('/api/orders');
+  const orders = await res.json();
+  const pending = orders.filter(o => o.status === 'pending' || o.status === 'received');
+  if (pending.length === 0) return alert('Nessun ordine da preparare.');
+  if (!confirm(`Metti in preparazione ${pending.length} ordine/i?`)) return;
+  await Promise.all(pending.map(o =>
+    fetch(`/api/orders/${o.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'preparing' }),
+    })
+  ));
+  loadOrders();
+}
+
+async function rejectAll() {
+  const res = await fetch('/api/orders');
+  const orders = await res.json();
+  const pending = orders.filter(o => o.status === 'pending' || o.status === 'received');
+  if (pending.length === 0) return alert('Nessun ordine da rifiutare.');
+  if (!confirm(`Rifiuta ${pending.length} ordine/i in attesa?`)) return;
+  const reason = prompt('Motivo del rifiuto (lascia vuoto per non specificare):') ?? '';
+  await Promise.all(pending.map(o =>
+    fetch(`/api/orders/${o.id}/reject`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason.trim() }),
+    })
+  ));
+  loadOrders();
+}
+
 async function updateStatus(id, status) {
   await fetch(`/api/orders/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
-  });
-  loadOrders();
-}
-
-async function rejectOrder(id) {
-  const reason = prompt('Motivo del rifiuto (lascia vuoto se non vuoi specificarlo):');
-  if (reason === null) return; // cancelled
-  await fetch(`/api/orders/${id}/reject`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason: reason.trim() }),
   });
   loadOrders();
 }
@@ -477,6 +461,5 @@ function toggleAuto() {
 loadOrders();
 autoInterval = setInterval(loadOrders, 15000);
 </script>
-
 </body>
 </html>
