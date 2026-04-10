@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poke Garden – Cucina</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: #f0f0f0; color: #111; font-size: 14px; }
+
+    /* ── HEADER ── */
+    header {
+      background: #1a1a2e; color: white;
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    header h1 { font-family: 'Pacifico', cursive; font-size: 1.3rem; }
+    header h1 span { color: #f5c518; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .refresh-btn {
+      background: #e8253a; color: white; border: none;
+      padding: 6px 16px; border-radius: 50px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .refresh-btn:hover { background: #c01e30; }
+    .bulk-btn {
+      border: none; border-radius: 50px;
+      padding: 6px 16px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .bulk-btn:hover { opacity: 0.8; }
+    .bulk-prepare { background: #fff3e0; color: #e65100; }
+    .bulk-reject  { background: #fde8e8; color: #c62828; }
+    .bulk-archive { background: #f0f0f0; color: #555; }
+    .auto-label { font-size: 0.8rem; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    #last-update { font-size: 0.75rem; color: #888; }
+
+    /* ── PAGE ── */
+    .page { padding: 20px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #aaa; font-size: 1rem; }
+
+    /* ── SINGLE TABLE WRAP ── */
+    .poke-table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: white; font-size: 13px;
+      min-width: 900px;
+    }
+    thead tr { background: #e8a020; }
+    thead th {
+      padding: 10px 12px; text-align: left;
+      font-weight: 700; color: #fff;
+      border-right: 1px solid rgba(255,255,255,0.25);
+      white-space: nowrap;
+    }
+    thead th:last-child { border-right: none; }
+
+    tbody tr { border-bottom: 1px solid #e8e8e8; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #fff8f0; }
+
+    td {
+      padding: 10px 12px; vertical-align: middle;
+      border-right: 1px solid #ececec;
+    }
+    td:last-child { border-right: none; }
+
+    /* Name cell */
+    .td-name { font-style: italic; font-weight: 700; font-size: 0.95rem; white-space: nowrap; min-width: 90px; }
+
+    /* Size badge */
+    .size-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .size-small        { background: #e3f2fd; color: #1565c0; }
+    .size-regular      { background: #f3e5f5; color: #6a1b9a; }
+    .size-large        { background: #fce4ec; color: #880e4f; }
+    .size-tradizionale { background: #fff8e1; color: #e65100; border: 1px solid #ffcc02; }
+
+    /* Base badge */
+    .base-badge {
+      background: #e3f2fd; color: #1565c0;
+      display: inline-block; padding: 3px 10px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500;
+    }
+
+    /* Protein tags */
+    .protein-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 600; margin: 2px;
+    }
+    .protein-plain { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
+    .protein-extra { background: #e8253a; color: white; }
+
+    /* Veggie tags */
+    .veggie-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500; margin: 2px;
+      background: #2e7d32; color: white;
+    }
+
+    /* Sauce tags */
+    .sauce-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500; margin: 2px;
+      background: #ff7043; color: white;
+    }
+
+    /* Topping tags */
+    .topping-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 500; margin: 2px;
+    }
+    .topping-plain { background: #7b1fa2; color: white; }
+    .topping-extra { background: #e8253a; color: white; }
+
+    /* Bacchette (chopsticks) checkbox */
+    .td-chopsticks { text-align: center; min-width: 70px; }
+    .chopstick-check {
+      width: 20px; height: 20px; accent-color: #1a1a2e;
+      cursor: default; pointer-events: none;
+    }
+
+    /* Allergy cell */
+    .td-allergy { font-size: 0.8rem; color: #c62828; font-weight: 600; min-width: 120px; }
+
+    /* ── ORDER STATUS / ACTION ── */
+    .status-pill {
+      font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 50px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .pill-received  { background: #fffde7; color: #856404; border: 1px solid #f5c518; }
+    .pill-preparing { background: #fff3e0; color: #e65100; border: 1px solid #ff9800; }
+    .pill-ready     { background: #e8f5e9; color: #2e7d32; border: 1px solid #4caf50; }
+
+    .order-action-cell { padding: 6px 10px; white-space: nowrap; }
+    .action-btn {
+      padding: 5px 12px; border: none; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+    }
+    .action-btn:hover { opacity: 0.8; }
+    .btn-start   { background: #fff3e0; color: #e65100; }
+    .btn-ready   { background: #e8f5e9; color: #2e7d32; }
+    .btn-archive { background: #f0f0f0; color: #777; }
+    .btn-reject  { background: #fde8e8; color: #c62828; margin-top: 4px; }
+    .order-action-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+    /* ── OTHER (non-poke) row ── */
+    .other-row { background: #fffde7 !important; }
+    .other-row-cell { font-size: 0.8rem; padding: 7px 12px; color: #555; }
+
+    /* Top border between orders */
+    tr.order-first-row td { border-top: 2px solid #d0d0d0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Poke <span>Garden</span> <small style="font-family:'DM Sans',sans-serif;font-size:0.7rem;font-weight:400;color:#aaa;margin-left:6px">cucina</small></h1>
+  <div class="header-right">
+    <button class="bulk-btn bulk-prepare" id="btn-prepare-archive" onclick="prepareOrArchiveAll()">🔥 Prepara tutti</button>
+    <button class="bulk-btn bulk-reject"  onclick="rejectAll()">❌ Rifiuta tutti</button>
+    <label class="auto-label">
+      <input type="checkbox" id="auto-refresh" checked onchange="toggleAuto()" />
+      Auto 15s
+    </label>
+    <button class="refresh-btn" onclick="loadOrders()">🔄 Aggiorna</button>
+    <span id="last-update"></span>
+  </div>
+</header>
+
+<div class="page" id="page">
+  <div class="empty-state">Caricamento ordini…</div>
+</div>
+
+<script>
+let autoInterval;
+
+const POKE_TRADIZIONALI_IDS = ['pt1', 'pt2', 'pt3'];
+
+function isPokeItem(item) {
+  return item.name.toLowerCase().includes('poke')
+    || (item.id && POKE_TRADIZIONALI_IDS.includes(item.id))
+    || item.name === 'Pokai'
+    || item.name === 'Spicy Special Salmon';
+}
+
+function parsePokeDetail(detail) {
+  if (!detail) return null;
+  const result = { base: [], proteine: [], verdure: [], salse: [], topping: [] };
+  const parts = detail.split('·').map(s => s.trim());
+  parts.forEach(part => {
+    const colon = part.indexOf(':');
+    if (colon === -1) return;
+    const key = part.slice(0, colon).trim().toLowerCase();
+    const values = part.slice(colon + 1).trim().split(',').map(s => s.trim()).filter(Boolean);
+    if (key.includes('base')) result.base = values;
+    else if (key.includes('prot')) result.proteine = values;
+    else if (key.includes('verdur') || key.includes('frutta')) result.verdure = values;
+    else if (key.includes('salse') || key.includes('salsa')) result.salse = values;
+    else if (key.includes('topping')) result.topping = values;
+  });
+  return result;
+}
+
+function sizeLabel(name) {
+  const n = name.toLowerCase();
+  if (n.includes('small'))   return { label: 'Small',   cls: 'size-small' };
+  if (n.includes('large'))   return { label: 'Large',   cls: 'size-large' };
+  if (n.includes('regular')) return { label: 'Regular', cls: 'size-regular' };
+  return null;
+}
+
+// Returns all <tr> rows for one order: one row per poke item + optional "Altro" row
+function rowsForOrder(order) {
+  const statusMap = {
+    pending:   { label: '⏳ Ricevuto',        cls: 'pill-received'  },
+    received:  { label: '⏳ Ricevuto',        cls: 'pill-received'  },
+    preparing: { label: '🔥 In preparazione', cls: 'pill-preparing' },
+    ready:     { label: '✅ Pronto',           cls: 'pill-ready'     },
+  };
+  const st   = statusMap[order.status] || statusMap.pending;
+  const time = new Date(order.createdAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const date = new Date(order.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+
+  let actionBtn = '';
+  if (order.status === 'pending' || order.status === 'received') {
+    actionBtn = `<span class="status-pill pill-received">⏳ Ricevuto</span>`;
+  } else if (order.status === 'preparing') {
+    actionBtn = `<span class="status-pill pill-preparing">🔥 In preparazione</span>`;
+  } else if (order.status === 'ready') {
+    actionBtn = `<span class="status-pill pill-ready">✅ Pronto</span>`;
+  }
+
+  const pokeItems  = order.items.filter(i => isPokeItem(i));
+  const otherItems = order.items.filter(i => !isPokeItem(i));
+  const rowCount   = pokeItems.length + (otherItems.length > 0 ? 1 : 0) || 1;
+
+  const allergyNote = order.notes
+    ? order.notes.replace(/\d*\s*bacchett\w*[^,]*(,\s*)?/gi,'').replace(/\d*\s*forchet\w*[^,]*(,\s*)?/gi,'').trim().replace(/^,\s*|,\s*$/g,'').trim()
+    : '';
+
+  const wantsChopsticks = !!order.bacchette || (order.notes && order.notes.toLowerCase().includes('bacchette'));
+
+  const itemRows = pokeItems.map((item, idx) => {
+    const parsed = parsePokeDetail(item.detail);
+    const size   = sizeLabel(item.name);
+    const isTradizionale = !item.detail || (!item.detail.includes('·') && !item.detail.includes('Base:'));
+    const itemWantsChopsticks = wantsChopsticks
+      || (item.detail && item.detail.toLowerCase().includes('bacchette'));
+
+    // On the first row of this order: allergy + status + action span all rows
+    const orderMeta = [
+      `<strong>#${String(order.orderNumber).padStart(3,'0')}</strong>`,
+      
+      `${date} ${time}`,
+    ].filter(Boolean).join(' · ');
+
+    const allergyCell = idx === 0
+      ? `<td class="td-allergy" rowspan="${rowCount}">
+           <div style="margin-bottom:5px">${allergyNote}</div>
+         </td>
+         <td class="order-action-cell" rowspan="${rowCount}">${actionBtn}</td>`
+      : '';
+
+    if (isTradizionale) {
+      return `
+        <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+          <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+          <td><span class="size-badge size-tradizionale">Tradizionale</span></td>
+          <td colspan="5" style="font-size:0.82rem">
+            <span style="color:#e8a020;font-weight:700">${item.name}</span>
+            <span style="color:#777;margin-left:6px">${item.detail || ''}</span>
+          </td>
+          <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
+          ${allergyCell}
+        </tr>`;
+    }
+
+    if (!parsed) {
+      return `
+        <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+          <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+          <td>${size ? `<span class="size-badge ${size.cls}">${size.label}</span>` : ''}</td>
+          <td colspan="5" style="font-size:0.82rem;color:#555">
+            <span style="color:#e8a020;font-weight:700">${item.name}</span> ${item.detail || ''}
+          </td>
+          <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
+          ${allergyCell}
+        </tr>`;
+    }
+
+    const baseHTML  = parsed.base.map(b => `<span class="base-badge">${b}</span>`).join(' ');
+    const protHTML  = parsed.proteine.map(p => {
+      const isExtra = p.toLowerCase().includes('+') || p.toLowerCase().includes('spicy') || p.toLowerCase().includes('tartare');
+      return `<span class="protein-tag ${isExtra ? 'protein-extra' : 'protein-plain'}">${p}</span>`;
+    }).join('');
+    const vegHTML   = parsed.verdure.map(v => `<span class="veggie-tag">${v}</span>`).join('');
+    const salseHTML = parsed.salse.map(s => `<span class="sauce-tag">${s}</span>`).join('');
+    const topHTML   = parsed.topping.map(t => {
+      const isExtra = t.includes('+') || t.toLowerCase().includes('philadelphia') || t.toLowerCase().includes('ikura') || t.toLowerCase().includes('tobiko');
+      return `<span class="topping-tag ${isExtra ? 'topping-extra' : 'topping-plain'}">${t}</span>`;
+    }).join('');
+
+    return `
+      <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+        <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+        <td>${size ? `<span class="size-badge ${size.cls}">${size.label}</span>` : ''}</td>
+        <td>${baseHTML}</td>
+        <td>${protHTML  || '<span style="color:#ccc">—</span>'}</td>
+        <td>${vegHTML   || '<span style="color:#ccc">—</span>'}</td>
+        <td>${salseHTML || '<span style="color:#ccc">—</span>'}</td>
+        <td>${topHTML   || '<span style="color:#ccc">—</span>'}</td>
+        <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
+        ${allergyCell}
+      </tr>`;
+  }).join('');
+
+  // Non-poke items: if there are also poke rows, render as a compact extra row;
+  // if poke rows are empty (pure non-poke order), render each as a full row with all columns.
+  let otherRow = '';
+  if (otherItems.length > 0) {
+    if (pokeItems.length > 0) {
+      // Compact summary row — allergy/action already covered by rowspan above
+      otherRow = `<tr class="other-row">
+        <td colspan="8" class="other-row-cell">
+          <strong>Altro:</strong> ${otherItems.map(i => `${i.qty > 1 ? i.qty + '× ' : ''}${i.name}`).join(', ')}
+        </td>
+      </tr>`;
+    } else {
+      // Pure non-poke order — render full rows so name/bacchette/allergy/action are visible
+      const orderMeta = [
+        `<strong>#${String(order.orderNumber).padStart(3,'0')}</strong>`,
+        order.tableNumber && order.tableNumber !== '-' ? `🪑 T.${order.tableNumber}` : null,
+        
+        `${date} ${time}`,
+      ].filter(Boolean).join(' · ');
+
+      otherRow = otherItems.map((item, idx) => {
+        const allergyCell = idx === 0
+          ? `<td class="td-allergy" rowspan="${otherItems.length}">
+               <div style="margin-bottom:5px">${allergyNote}</div>
+             </td>
+             <td class="order-action-cell" rowspan="${otherItems.length}">${actionBtn}</td>`
+          : '';
+        return `
+          <tr class="other-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+            <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+            <td><span class="size-badge" style="background:#f0f0f0;color:#555">${item.qty > 1 ? item.qty + '×' : ''}</span></td>
+            <td colspan="5" style="font-size:0.88rem;font-weight:600;color:#333">${item.name}</td>
+            <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${wantsChopsticks ? 'checked' : ''}></td>
+            ${allergyCell}
+          </tr>`;
+      }).join('');
+    }
+  }
+
+  return itemRows + otherRow;
+}
+
+async function loadOrders() {
+  try {
+    const res = await fetch('/api/orders');
+    const orders = await res.json();
+
+    const active = orders
+      .filter(o => o.status !== 'done' && o.status !== 'rejected')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const page = document.getElementById('page');
+    if (active.length === 0) {
+      page.innerHTML = '<div class="empty-state">🎉 Nessun ordine attivo</div>';
+    } else {
+      page.innerHTML = `
+        <div class="poke-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Dimensione</th>
+                <th>Base</th>
+                <th>Proteina</th>
+                <th>Frutta / Verdura</th>
+                <th>Salse</th>
+                <th>Topping</th>
+                <th>Bacchette</th>
+                <th>Aggiunte / Allergie / Intolleranze</th>
+                <th>Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${active.map(rowsForOrder).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    document.getElementById('last-update').textContent =
+      new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    updatePrepareArchiveBtn(orders);
+  } catch(e) {
+    document.getElementById('page').innerHTML = '<div class="empty-state" style="color:#e8253a">⚠️ Errore nel caricamento ordini</div>';
+  }
+}
+
+async function prepareOrArchiveAll() {
+  const res = await fetch('/api/orders');
+  const orders = await res.json();
+  const active = orders.filter(o => o.status !== 'done' && o.status !== 'rejected');
+  const pending = active.filter(o => o.status === 'pending' || o.status === 'received');
+  const preparing = active.filter(o => o.status === 'preparing' || o.status === 'ready');
+
+  if (pending.length > 0) {
+    // Fase 1: metti tutti in preparazione
+    if (!confirm(`Metti in preparazione ${pending.length} ordine/i?`)) return;
+    await Promise.all(pending.map(o =>
+      fetch(`/api/orders/${o.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'preparing' }),
+      })
+    ));
+  } else if (preparing.length > 0) {
+    // Fase 2: archivia tutti
+    if (!confirm(`Archivia ${preparing.length} ordine/i completati?`)) return;
+    await Promise.all(preparing.map(o =>
+      fetch(`/api/orders/${o.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' }),
+      })
+    ));
+  } else {
+    alert('Nessun ordine attivo.');
+  }
+  loadOrders();
+}
+
+function updatePrepareArchiveBtn(orders) {
+  const btn = document.getElementById('btn-prepare-archive');
+  if (!btn) return;
+  const active = orders.filter(o => o.status !== 'done' && o.status !== 'rejected');
+  const hasPending = active.some(o => o.status === 'pending' || o.status === 'received');
+  if (hasPending || active.length === 0) {
+    btn.textContent = '🔥 Prepara tutti';
+    btn.className = 'bulk-btn bulk-prepare';
+  } else {
+    btn.textContent = '🗑 Archivia tutti';
+    btn.className = 'bulk-btn bulk-archive';
+  }
+}
+
+async function rejectAll() {
+  const res = await fetch('/api/orders');
+  const orders = await res.json();
+  const pending = orders.filter(o => o.status === 'pending' || o.status === 'received');
+  if (pending.length === 0) return alert('Nessun ordine da rifiutare.');
+  if (!confirm(`Rifiuta ${pending.length} ordine/i in attesa?`)) return;
+  const reason = prompt('Motivo del rifiuto (lascia vuoto per non specificare):') ?? '';
+  await Promise.all(pending.map(o =>
+    fetch(`/api/orders/${o.id}/reject`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason.trim() }),
+    })
+  ));
+  loadOrders();
+}
+
+async function updateStatus(id, status) {
+  await fetch(`/api/orders/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  loadOrders();
+}
+
+function toggleAuto() {
+  clearInterval(autoInterval);
+  if (document.getElementById('auto-refresh').checked) {
+    autoInterval = setInterval(loadOrders, 15000);
+  }
+}
+
+loadOrders();
+autoInterval = setInterval(loadOrders, 15000);
+</script>
+</body>
+</html>
