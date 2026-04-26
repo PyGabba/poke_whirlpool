@@ -278,10 +278,33 @@ function showSuccessModal(orderNumber, name, total) {
   resetCodeUI();
 }
 
+function validateName() {
+  const nameInput = document.getElementById('customerName');
+  const nameError = document.getElementById('nameError');
+  const name = nameInput.value.trim();
+  if (!name) {
+    nameInput.classList.add('field-error');
+    nameError.classList.add('visible');
+    nameInput.focus();
+    nameInput.addEventListener('input', function clearErr() {
+      if (nameInput.value.trim()) {
+        nameInput.classList.remove('field-error');
+        nameError.classList.remove('visible');
+        nameInput.removeEventListener('input', clearErr);
+      }
+    });
+    return false;
+  }
+  nameInput.classList.remove('field-error');
+  nameError.classList.remove('visible');
+  return true;
+}
+
 function setupOrder() {
   // Satispay
   document.getElementById('satispayBtn').addEventListener('click', () => {
     if (!cart.length) { alert('Il carrello è vuoto!'); return; }
+    if (!validateName()) return;
     openSatispayModal();
   });
   document.getElementById('closeSatispay').addEventListener('click', closeSatispayModal);
@@ -300,6 +323,7 @@ function setupOrder() {
   // PayPal
   document.getElementById('checkoutBtn').addEventListener('click', () => {
     if (!cart.length) { alert('Il carrello è vuoto!'); return; }
+    if (!validateName()) return;
     openPaypalModal();
   });
   document.getElementById('closePaypal').addEventListener('click', closePaypalModal);
