@@ -87,25 +87,51 @@ function setupSizeSelector() {
   document.querySelector('.size-opt[data-size="regular"]').classList.add('selected');
 }
 
+function setChipCount(chip, count) {
+  chip.classList.toggle('selected', count > 0);
+  const existing = chip.querySelector('.chip-count');
+  if (existing) existing.remove();
+  if (count > 1) {
+    const badge = document.createElement('span');
+    badge.className = 'chip-count';
+    badge.textContent = '×' + count;
+    chip.appendChild(badge);
+  }
+}
+
 function toggleChip(chip) {
-  const cat = chip.dataset.cat;
-  const val = chip.dataset.val;
-  const limits = menu.pokeSizes[pokeBuilder.size];
-  const limit  = limits[cat];
-  if (chip.classList.contains('selected')) {
-    chip.classList.remove('selected');
-    pokeBuilder[cat] = pokeBuilder[cat].filter(v => v !== val);
+  const cat          = chip.dataset.cat;
+  const val          = chip.dataset.val;
+  const limits       = menu.pokeSizes[pokeBuilder.size];
+  const limit        = limits[cat];
+  const currentCount = pokeBuilder[cat].filter(v => v === val).length;
+  const totalCount   = pokeBuilder[cat].length;
+
+  if (cat === 'proteine') {
+    // Cycle 0 → 1 → … → limit → 0 (extras charged at €2 each beyond limit)
+    if (currentCount >= limit) {
+      pokeBuilder[cat] = pokeBuilder[cat].filter(v => v !== val);
+    } else {
+      pokeBuilder[cat].push(val);
+    }
   } else {
-    if (cat !== 'proteine' && pokeBuilder[cat].length >= limit) return;
-    chip.classList.add('selected');
-    pokeBuilder[cat] = [...pokeBuilder[cat], val];
+    if (currentCount === 0 && totalCount < limit) {
+      pokeBuilder[cat].push(val);
+    } else if (currentCount > 0 && totalCount < limit) {
+      pokeBuilder[cat].push(val);
+    } else if (currentCount > 0) {
+      // At total limit or cycling back — remove all of this item
+      pokeBuilder[cat] = pokeBuilder[cat].filter(v => v !== val);
+    }
+    // else: unselected and total at limit → do nothing
   }
   updateBuilderQuotas();
 }
 
 function syncChipsUI(cat) {
   document.querySelectorAll(`.chip[data-cat="${cat}"]`).forEach(chip => {
-    chip.classList.toggle('selected', pokeBuilder[cat].includes(chip.dataset.val));
+    const count = pokeBuilder[cat].filter(v => v === chip.dataset.val).length;
+    setChipCount(chip, count);
   });
 }
 
@@ -119,10 +145,12 @@ function updateBuilderQuotas() {
     el.classList.toggle('full', count >= limit);
   });
   document.querySelectorAll('.chip').forEach(chip => {
-    const cat       = chip.dataset.cat;
-    const limit     = limits[cat];
-    const isSelected = chip.classList.contains('selected');
-    chip.classList.toggle('disabled', !isSelected && cat !== 'proteine' && pokeBuilder[cat].length >= limit);
+    const cat        = chip.dataset.cat;
+    const limit      = limits[cat];
+    const chipCount  = pokeBuilder[cat].filter(v => v === chip.dataset.val).length;
+    const totalCount = pokeBuilder[cat].length;
+    setChipCount(chip, chipCount);
+    chip.classList.toggle('disabled', chipCount === 0 && cat !== 'proteine' && totalCount >= limit);
   });
   renderBuilderSummary();
 }
@@ -161,7 +189,7 @@ document.getElementById('addPokeBtn').addEventListener('click', () => {
   if (topping.length)       parts.push(`Topping: ${topping.join(', ')}`);
   addToCart({ id: 'poke-' + Date.now(), name: `Poke ${size.charAt(0).toUpperCase() + size.slice(1)}`, price, detail: parts.join(' · '), qty: 1 });
   pokeBuilder = { size: pokeBuilder.size, base: [], proteine: [], fruttaVerdura: [], salse: [], topping: [] };
-  document.querySelectorAll('.chip.selected').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.chip').forEach(c => { c.classList.remove('selected'); const b = c.querySelector('.chip-count'); if (b) b.remove(); });
   updateBuilderQuotas();
 });
 

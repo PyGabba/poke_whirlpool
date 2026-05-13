@@ -264,11 +264,15 @@ function rowsForOrder(order) {
       `${date} ${time}`,
     ].filter(Boolean).join(' · ');
 
+    const orderTotal = parseFloat(order.total || 0).toFixed(2).replace('.', ',');
     const allergyCell = idx === 0
       ? `<td class="td-allergy" rowspan="${rowCount}">
            <div style="margin-bottom:5px">${allergyNote}</div>
          </td>
-         <td class="order-action-cell" rowspan="${rowCount}">${actionBtn}</td>`
+         <td class="order-action-cell" rowspan="${rowCount}">
+           <strong style="font-size:0.88rem;color:#2e7d32;white-space:nowrap">Tot: € ${orderTotal}</strong>
+           ${actionBtn}
+         </td>`
       : '';
 
     if (isTradizionale) {
@@ -280,6 +284,7 @@ function rowsForOrder(order) {
             <span style="color:#e8a020;font-weight:700">${item.name}</span>
             <span style="color:#777;margin-left:6px">${item.detail || ''}</span>
           </td>
+          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
           <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
           ${allergyCell}
         </tr>`;
@@ -293,6 +298,7 @@ function rowsForOrder(order) {
           <td colspan="5" style="font-size:0.82rem;color:#555">
             <span style="color:#e8a020;font-weight:700">${item.name}</span> ${item.detail || ''}
           </td>
+          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
           <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
           ${allergyCell}
         </tr>`;
@@ -319,6 +325,7 @@ function rowsForOrder(order) {
         <td>${vegHTML   || '<span style="color:#ccc">—</span>'}</td>
         <td>${salseHTML || '<span style="color:#ccc">—</span>'}</td>
         <td>${topHTML   || '<span style="color:#ccc">—</span>'}</td>
+        <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
         <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
         ${allergyCell}
       </tr>`;
@@ -331,7 +338,7 @@ function rowsForOrder(order) {
     if (pokeItems.length > 0) {
       // Compact summary row — allergy/action already covered by rowspan above
       otherRow = `<tr class="other-row">
-        <td colspan="8" class="other-row-cell">
+        <td colspan="9" class="other-row-cell">
           <strong>Altro:</strong> ${otherItems.map(i => `${i.qty > 1 ? i.qty + '× ' : ''}${i.name}`).join(', ')}
         </td>
       </tr>`;
@@ -344,18 +351,23 @@ function rowsForOrder(order) {
         `${date} ${time}`,
       ].filter(Boolean).join(' · ');
 
+      const nonPokeTotal = parseFloat(order.total || 0).toFixed(2).replace('.', ',');
       otherRow = otherItems.map((item, idx) => {
         const allergyCell = idx === 0
           ? `<td class="td-allergy" rowspan="${otherItems.length}">
                <div style="margin-bottom:5px">${allergyNote}</div>
              </td>
-             <td class="order-action-cell" rowspan="${otherItems.length}">${actionBtn}</td>`
+             <td class="order-action-cell" rowspan="${otherItems.length}">
+               <strong style="font-size:0.88rem;color:#2e7d32;white-space:nowrap">Tot: € ${nonPokeTotal}</strong>
+               ${actionBtn}
+             </td>`
           : '';
         return `
           <tr class="other-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
             <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
             <td><span class="size-badge" style="background:#f0f0f0;color:#555">${item.qty > 1 ? item.qty + '×' : ''}</span></td>
             <td colspan="5" style="font-size:0.88rem;font-weight:600;color:#333">${item.name}</td>
+            <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
             <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${wantsChopsticks ? 'checked' : ''}></td>
             ${allergyCell}
           </tr>`;
@@ -391,6 +403,7 @@ async function loadOrders() {
                 <th>Frutta / Verdura</th>
                 <th>Salse</th>
                 <th>Topping</th>
+                <th style="text-align:right">€</th>
                 <th>Bacchette</th>
                 <th>Aggiunte / Allergie / Intolleranze</th>
                 <th>Azione</th>
@@ -399,6 +412,17 @@ async function loadOrders() {
             <tbody>
               ${active.map(rowsForOrder).join('')}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="7" style="padding:10px 12px;text-align:right;font-weight:700;font-size:0.9rem;color:#555;border-top:2px solid #d0d0d0">
+                  Totale (${active.length} ordine/i)
+                </td>
+                <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:1rem;color:#2e7d32;border-top:2px solid #d0d0d0;white-space:nowrap">
+                  € ${active.reduce((sum, o) => sum + parseFloat(o.total || 0), 0).toFixed(2).replace('.', ',')}
+                </td>
+                <td colspan="3" style="border-top:2px solid #d0d0d0"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>`;
     }
