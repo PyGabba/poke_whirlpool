@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const path      = require('path');
 const mongoose  = require('mongoose');
 const nodemailer = require('nodemailer');
+const MongoStore = require('connect-mongo');
 const Customer  = require('./models/Customer');
 const axios = require('axios');
 
@@ -36,7 +37,12 @@ mongoose.connect(process.env.MONGO_URI)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({ secret: 'pokewhirlpool-secret', resave: false, saveUninitialized: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'pokewhirlpool-secret',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+}));
 
 // ── Mailer (Brevo HTTPS API — works on Render) ───────────────────────────────
 async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
