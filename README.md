@@ -1,6 +1,41 @@
-# Poke Garden – Ordering System
+# 🍣 Poke Garden – Ordering System
 
-A full-stack web application for table-side ordering at Poke Garden. Customers browse the menu, build custom poke bowls, and pay via PayPal or Satispay. Kitchen staff manage order status in real time through a dedicated dashboard.
+> Table-side ordering and kitchen management for Poke Garden restaurant.
+
+![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/license-ISC-blue)
+
+Customers browse the full menu, build custom poke bowls, and pay via PayPal or Satispay — all from their phone or the table tablet. Kitchen staff manage live order status through a separate dashboard with real-time auto-refresh.
+
+---
+
+## Screenshots
+
+| Customer Page | Kitchen Dashboard |
+|:---:|:---:|
+| *(ordering page)* | *(kitchen page)* |
+
+---
+
+## Features
+
+### Customer Page (`/`)
+- **Poke Builder** — Choose size (Small / Regular / Large) then configure base, proteins, fruit & vegetables, sauces, and toppings. Slot quotas enforced per size; repeating the same ingredient is supported. Extra proteins +€2.00, premium toppings (Tobiko, Ikura, Philadelphia…) +€1.00.
+- **Traditional Poke** — Fixed recipes at €9.90: Pokai, Poke Classic, Spicy Special Salmon.
+- **Full Menu** — Antipasti, Contorni, Primi Piatti, Secondi Piatti with ± quantity controls.
+- **Returning Customer Recognition** — Last order and saved favourites loaded by name for one-tap re-ordering.
+- **Cart Drawer** — Live item list with running total before checkout.
+- **Payment via QR Code** — PayPal Me and Satispay QR codes generated dynamically from the cart total. 30-second delay prevents accidental submission.
+- **Order Status Polling** — Client polls every 10 s; rejection surfaces an in-app modal with refund details and triggers an automated email.
+
+### Kitchen Dashboard (`/kitchen`)
+- **Live Order Table** — Active orders with name, bowl composition, allergen notes, chopstick flag, per-item price, and per-order total.
+- **Status Workflow** — *Ricevuto → In Preparazione → Pronto* per order, one click.
+- **Bulk Actions** — Prepare all pending / archive all completed / reject all pending (with optional reason).
+- **Auto-Refresh** — Every 15 seconds, toggleable.
+- **Grand Total** — Sum of all active order totals in the table footer.
 
 ---
 
@@ -9,10 +44,11 @@ A full-stack web application for table-side ordering at Poke Garden. Customers b
 | Layer | Technology |
 |-------|------------|
 | Runtime | Node.js + Express |
-| Database | MongoDB (Mongoose) |
+| Database | MongoDB + Mongoose |
+| Sessions | connect-mongo (MongoDB-backed) |
 | Frontend | Vanilla HTML / CSS / JS |
 | Email | Brevo SMTP API |
-| Payments | PayPal Me · Satispay deep link |
+| Payments | PayPal Me · Satispay deep link + QR |
 
 ---
 
@@ -21,7 +57,7 @@ A full-stack web application for table-side ordering at Poke Garden. Customers b
 ### Prerequisites
 
 - Node.js ≥ 18
-- A MongoDB Atlas cluster (or local MongoDB instance)
+- MongoDB Atlas cluster or local MongoDB instance
 
 ### Installation
 
@@ -31,15 +67,23 @@ cd poke_whirlpool
 npm install
 ```
 
-### Environment
+### Environment Variables
 
 Create a `.env` file in the project root:
 
 ```env
+# Required
 MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<app>
-BREVO_API_KEY=your_brevo_api_key        # optional – enables rejection emails
-BREVO_FROM=noreply@yourdomain.com       # optional – sender address
-PORT=3000                               # optional – defaults to 3000
+
+# Recommended
+SESSION_SECRET=replace_with_a_long_random_string
+
+# Optional – enables rejection emails to customers
+BREVO_API_KEY=your_brevo_api_key
+BREVO_FROM=noreply@yourdomain.com
+
+# Optional – defaults to 3000
+PORT=3000
 ```
 
 ### Run
@@ -48,54 +92,23 @@ PORT=3000                               # optional – defaults to 3000
 npm start
 ```
 
-Server starts at **http://localhost:3000**.
-
----
-
-## Application Pages
-
-| Route | Description |
-|-------|-------------|
-| `/` | Customer ordering page |
-| `/kitchen` | Kitchen dashboard (staff only) |
-
----
-
-## Features
-
-### Customer Page (`/`)
-
-- **Poke Builder** — Configure size (Small / Regular / Large), base, proteins, fruit & vegetables, sauces, and toppings. Slot quotas enforced per size; extra proteins charged at +€2.00 each, selected extras (Tobiko, Ikura, Philadelphia, etc.) at +€1.00.
-- **Traditional Poke** — Fixed recipes (Pokai, Poke Classic, Spicy Special Salmon) at €9.90.
-- **Full Menu** — Antipasti, Contorni, Primi Piatti, Secondi Piatti with quantity controls.
-- **Customer History** — Returning customers are recognised by name; last order and saved favourites are surfaced for quick re-ordering.
-- **Cart Drawer** — Add, remove, and adjust quantities before checkout. Displays running total.
-- **Payment Flow** — PayPal Me and Satispay QR codes generated dynamically from the cart total. A 30-second confirmation timer prevents accidental submission.
-- **Order Tracking** — After submission, the client polls every 10 seconds for status changes. Rejection triggers an in-app modal with refund instructions and a confirmation email to the customer.
-
-### Kitchen Dashboard (`/kitchen`)
-
-- **Live Order Table** — All active orders displayed in a single sortable table with name, size, ingredients, allergen notes, chopstick preference, per-item price, and order total.
-- **Status Management** — Move individual orders through *Ricevuto → In Preparazione → Pronto* with one click.
-- **Bulk Actions** — Prepare all pending orders or archive all completed orders in a single action. Reject all pending orders with an optional reason.
-- **Auto-Refresh** — Table reloads every 15 seconds; can be toggled off.
-- **Grand Total** — Running sum of all active order totals displayed in the table footer.
+App available at **http://localhost:3000**.
 
 ---
 
 ## Project Structure
 
 ```
-├── server.js           # Express app, API routes, in-memory order store
+├── server.js              # Express app · REST API · in-memory order store
 ├── models/
-│   └── Customer.js     # Mongoose schema for order history and favourites
+│   └── Customer.js        # Mongoose schema – order history & favourites
 └── public/
-    ├── index.html      # Customer ordering page
-    ├── kitchen.html    # Kitchen dashboard
+    ├── index.html         # Customer ordering page
+    ├── kitchen.html       # Kitchen dashboard
     ├── css/
     │   └── style.css
     └── js/
-        └── app.js      # Customer page logic
+        └── app.js         # Customer page logic
 ```
 
 ---
@@ -108,15 +121,24 @@ Server starts at **http://localhost:3000**.
 | `POST` | `/api/orders` | Place a new order |
 | `GET` | `/api/orders` | List all orders |
 | `PATCH` | `/api/orders/:id/status` | Update order status |
-| `PATCH` | `/api/orders/:id/reject` | Reject an order (sends email) |
-| `GET` | `/api/orders/:id/status-check` | Poll order status (client-side) |
+| `PATCH` | `/api/orders/:id/reject` | Reject an order (triggers email) |
+| `GET` | `/api/orders/:id/status-check` | Poll order status |
 | `GET` | `/api/customer/:name` | Fetch order history and favourites |
-| `POST` | `/api/customer/:name/favourites` | Add a favourite item |
+| `POST` | `/api/customer/:name/favourites` | Save a favourite item |
 | `DELETE` | `/api/customer/:name/favourites/:itemId` | Remove a favourite item |
 
 ---
 
-## Notes
+## Deployment
 
-- Orders are held **in memory** and are lost on server restart. This is intentional for the current single-session use case. For persistent order storage, replace the `orders` array in `server.js` with a MongoDB collection.
-- The kitchen dashboard has no authentication. For a multi-staff environment, add session-based access control before exposing it on a public network.
+The app is configured for [Render](https://render.com). Set the environment variables in the Render dashboard and point the start command to `npm start`.
+
+> **Note:** Orders are held in memory and reset on restart. This is intentional for the current single-shift use case. For full persistence, replace the `orders` array in `server.js` with a MongoDB collection.
+
+> **Note:** The `/kitchen` route has no authentication. Add access control before exposing it on a public network in a multi-staff environment.
+
+---
+
+## License
+
+ISC © [PyGabba](https://github.com/PyGabba)
