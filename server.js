@@ -150,7 +150,7 @@ const menu = {
     { id: 'sp2',  name: 'Pollo',                       price: 5.00 },
     { id: 'sp3',  name: 'Gamberoni',                   price: 7.00 },
     { id: 'sp4',  name: 'Polipo con patate',           price: 9.00 },
-    { id: 'sp5',  name: 'Tampura di salmone',          price: 9.00 },
+    { id: 'sp5',  name: 'Tempura di salmone',          price: 9.00 },
     { id: 'sp6',  name: 'Condimento: Salsa chili',     price: 0.00 },
     { id: 'sp7',  name: 'Condimento: Funghi e bambù',  price: 0.00 },
     { id: 'sp8',  name: 'Condimento: Curry',           price: 0.00 },
