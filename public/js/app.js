@@ -24,7 +24,7 @@ async function loadMenu() {
   renderMenuList('antipastiList',  menu.antipasti,     'antipasti');
   renderMenuList('contorniList',   menu.contorni,      'contorni');
   renderMenuList('primiList',      menu.primiPiatti,   'primiPiatti');
-  renderMenuList('secondiList',    menu.secondiPiatti, 'secondiPiatti');
+  renderSecondiList();
 }
 
 function setupNav() {
@@ -211,6 +211,45 @@ function renderMenuList(elId, items, category) {
   `).join('');
 }
 
+// ── Secondi Piatti — richiedono la scelta di un condimento prima di aggiungere ──
+function renderSecondiList() {
+  document.getElementById('secondiList').innerHTML = menu.secondiPiatti.map(item => `
+    <div class="menu-item">
+      <span class="menu-item-name">${item.name}</span>
+      <span class="menu-item-price">€ ${item.price.toFixed(2).replace('.', ',')}</span>
+      <button class="add-btn" onclick="openCondimentoPicker('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.price})">+ Aggiungi</button>
+    </div>
+  `).join('');
+}
+
+let _secondoDraft = null;
+
+function openCondimentoPicker(id, name, price) {
+  _secondoDraft = { id, name, price };
+  document.getElementById('condimentoTitle').textContent = name;
+  document.getElementById('condimentoGrid').innerHTML = menu.condimenti.map(c => `
+    <span class="chip" data-cid="${c.id}" onclick="selectCondimento('${c.id}','${c.name.replace(/'/g,"\\'")}')">${c.name}</span>
+  `).join('');
+  document.getElementById('condimentoModal').classList.add('show');
+}
+
+function closeCondimentoPicker() {
+  document.getElementById('condimentoModal').classList.remove('show');
+  _secondoDraft = null;
+}
+
+function selectCondimento(condId, condName) {
+  if (!_secondoDraft) return;
+  addToCart({
+    id:     `${_secondoDraft.id}-${condId}`,   // id composito: stesso secondo + condimento diverso restano righe distinte nel carrello
+    name:   `${_secondoDraft.name} (${condName})`,
+    price:  _secondoDraft.price,
+    detail: `Condimento: ${condName}`,
+    qty:    1,
+  });
+  closeCondimentoPicker();
+}
+
 function changeQty(id, delta, name, price) {
   const el      = document.getElementById('qty-' + id);
   const current = parseInt(el.textContent);
@@ -269,6 +308,10 @@ function setupCart() {
   document.getElementById('cartBtn').addEventListener('click', openCart);
   document.getElementById('closeCart').addEventListener('click', closeCart);
   document.getElementById('cartOverlay').addEventListener('click', closeCart);
+  document.getElementById('closeCondimento').addEventListener('click', closeCondimentoPicker);
+  document.getElementById('condimentoModal').addEventListener('click', (e) => {
+    if (e.target.id === 'condimentoModal') closeCondimentoPicker();
+  });
 }
 
 function openCart()  { document.getElementById('cartDrawer').classList.add('open');    document.getElementById('cartOverlay').classList.add('show'); }
