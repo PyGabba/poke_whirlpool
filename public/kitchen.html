@@ -153,6 +153,27 @@
     .btn-reject  { background: #fde8e8; color: #c62828; margin-top: 4px; }
     .order-action-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 
+    /* ── PER-ITEM REFUND ── */
+    .refund-btn {
+      margin-top: 4px; padding: 3px 9px; border: none; border-radius: 6px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      background: #fde8e8; color: #c62828; transition: opacity 0.15s;
+    }
+    .refund-btn:hover { opacity: 0.8; }
+    .refund-btn:disabled { background: #f0f0f0; color: #888; cursor: default; opacity: 1; }
+    .refund-btn-sm {
+      margin-left: 4px; padding: 1px 7px; border: none; border-radius: 6px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.68rem; font-weight: 600;
+      cursor: pointer; background: #fde8e8; color: #c62828;
+    }
+    .refund-btn-sm:hover { opacity: 0.8; }
+    .refund-btn-sm:disabled { background: #f0f0f0; color: #888; cursor: default; opacity: 1; }
+    tr.item-refunded > td:not(.td-allergy):not(.order-action-cell) {
+      opacity: 0.5; text-decoration: line-through;
+    }
+    tr.item-refunded .refund-btn { text-decoration: none; }
+
     /* ── OTHER (non-poke) row ── */
     .other-row { background: #fffde7 !important; }
     .other-row-cell { font-size: 0.8rem; padding: 7px 12px; color: #555; }
@@ -240,8 +261,9 @@ function rowsForOrder(order) {
     actionBtn = `<span class="status-pill pill-ready">✅ Pronto</span>`;
   }
 
-  const pokeItems  = order.items.filter(i => isPokeItem(i));
-  const otherItems = order.items.filter(i => !isPokeItem(i));
+  const indexedItems = order.items.map((item, i) => ({ item, i }));
+  const pokeItems  = indexedItems.filter(x => isPokeItem(x.item));
+  const otherItems = indexedItems.filter(x => !isPokeItem(x.item));
   const rowCount   = pokeItems.length + (otherItems.length > 0 ? 1 : 0) || 1;
 
   const allergyNote = order.notes
@@ -250,8 +272,9 @@ function rowsForOrder(order) {
 
   const wantsChopsticks = !!order.bacchette || (order.notes && order.notes.toLowerCase().includes('bacchette'));
 
-  const itemRows = pokeItems.map((item, idx) => {
+  const itemRows = pokeItems.map(({ item, i }, idx) => {
     const parsed = parsePokeDetail(item.detail);
+    const refundBtn = `<button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)" ${item.refunded ? 'disabled' : ''}>${item.refunded ? '✅ Rimborsato' : '💸 Rimborsa'}</button>`;
     const size   = sizeLabel(item.name);
     const isTradizionale = !item.detail || (!item.detail.includes('·') && !item.detail.includes('Base:'));
     const itemWantsChopsticks = wantsChopsticks
@@ -277,14 +300,17 @@ function rowsForOrder(order) {
 
     if (isTradizionale) {
       return `
-        <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+        <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}${item.refunded ? ' item-refunded' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
           <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
           <td><span class="size-badge size-tradizionale">Tradizionale</span></td>
           <td colspan="5" style="font-size:0.82rem">
             <span style="color:#e8a020;font-weight:700">${item.name}</span>
             <span style="color:#777;margin-left:6px">${item.detail || ''}</span>
           </td>
-          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
+          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
+            <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
+            ${refundBtn}
+          </td>
           <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
           ${allergyCell}
         </tr>`;
@@ -292,13 +318,16 @@ function rowsForOrder(order) {
 
     if (!parsed) {
       return `
-        <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+        <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}${item.refunded ? ' item-refunded' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
           <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
           <td>${size ? `<span class="size-badge ${size.cls}">${size.label}</span>` : ''}</td>
           <td colspan="5" style="font-size:0.82rem;color:#555">
             <span style="color:#e8a020;font-weight:700">${item.name}</span> ${item.detail || ''}
           </td>
-          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
+          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
+            <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
+            ${refundBtn}
+          </td>
           <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
           ${allergyCell}
         </tr>`;
@@ -317,7 +346,7 @@ function rowsForOrder(order) {
     }).join('');
 
     return `
-      <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+      <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}${item.refunded ? ' item-refunded' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
         <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
         <td>${size ? `<span class="size-badge ${size.cls}">${size.label}</span>` : ''}</td>
         <td>${baseHTML}</td>
@@ -325,7 +354,10 @@ function rowsForOrder(order) {
         <td>${vegHTML   || '<span style="color:#ccc">—</span>'}</td>
         <td>${salseHTML || '<span style="color:#ccc">—</span>'}</td>
         <td>${topHTML   || '<span style="color:#ccc">—</span>'}</td>
-        <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
+        <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
+          <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
+          ${refundBtn}
+        </td>
         <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
         ${allergyCell}
       </tr>`;
@@ -339,7 +371,10 @@ function rowsForOrder(order) {
       // Compact summary row — allergy/action already covered by rowspan above
       otherRow = `<tr class="other-row">
         <td colspan="9" class="other-row-cell">
-          <strong>Altro:</strong> ${otherItems.map(i => `${i.qty > 1 ? i.qty + '× ' : ''}${i.name}`).join(', ')}
+          <strong>Altro:</strong> ${otherItems.map(({ item, i }) => `
+            <span class="${item.refunded ? 'item-refunded' : ''}" style="display:inline-block">${item.qty > 1 ? item.qty + '× ' : ''}${item.name}</span>
+            <button class="refund-btn-sm" onclick="refundItem('${order.id}', ${i}, this)" ${item.refunded ? 'disabled' : ''}>${item.refunded ? '✅' : '💸 Rimborsa'}</button>
+          `).join(', ')}
         </td>
       </tr>`;
     } else {
@@ -352,7 +387,7 @@ function rowsForOrder(order) {
       ].filter(Boolean).join(' · ');
 
       const nonPokeTotal = parseFloat(order.total || 0).toFixed(2).replace('.', ',');
-      otherRow = otherItems.map((item, idx) => {
+      otherRow = otherItems.map(({ item, i }, idx) => {
         const allergyCell = idx === 0
           ? `<td class="td-allergy" rowspan="${otherItems.length}">
                <div style="margin-bottom:5px">${allergyNote}</div>
@@ -363,11 +398,14 @@ function rowsForOrder(order) {
              </td>`
           : '';
         return `
-          <tr class="other-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+          <tr class="other-row${idx === 0 ? ' order-first-row' : ''}${item.refunded ? ' item-refunded' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
             <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
             <td><span class="size-badge" style="background:#f0f0f0;color:#555">${item.qty > 1 ? item.qty + '×' : ''}</span></td>
             <td colspan="5" style="font-size:0.88rem;font-weight:600;color:#333">${item.name}</td>
-            <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</td>
+            <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
+              <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
+              <button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)" ${item.refunded ? 'disabled' : ''}>${item.refunded ? '✅ Rimborsato' : '💸 Rimborsa'}</button>
+            </td>
             <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${wantsChopsticks ? 'checked' : ''}></td>
             ${allergyCell}
           </tr>`;
@@ -496,6 +534,20 @@ async function rejectAll() {
       body: JSON.stringify({ reason: reason.trim() }),
     })
   ));
+  loadOrders();
+}
+
+async function refundItem(orderId, itemIndex, btn) {
+  if (!confirm('Rimborsare questo articolo?')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/orders/${orderId}/items/${itemIndex}/refund`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('refund failed');
+  } catch (e) {
+    alert('Errore nel rimborso.');
+    btn.disabled = false;
+    return;
+  }
   loadOrders();
 }
 

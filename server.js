@@ -86,6 +86,47 @@ async function sendRejectionEmail({ to, orderNumber, reason, paymentMethod }) {
   );
 }
 
+async function sendItemRefundEmail({ to, orderNumber, itemName, paymentMethod }) {
+  if (!to) return;
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('⚠️  BREVO_API_KEY not set — refund emails disabled.');
+    return;
+  }
+
+  const refundNote = paymentMethod === 'paypal'
+    ? 'Il rimborso verrà accreditato automaticamente sul tuo PayPal entro 24 ore.'
+    : paymentMethod === 'satispay'
+    ? 'Il rimborso verrà accreditato automaticamente sul tuo Satispay entro 24 ore.'
+    : 'Contattaci per il rimborso.';
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:auto">
+      <h2 style="color:#e8253a">💸 Articolo rimborsato</h2>
+      <p>Il seguente articolo del tuo ordine <strong>#${String(orderNumber).padStart(3,'0')}</strong> è stato rimborsato:</p>
+      <p><strong>${itemName}</strong></p>
+      <div style="background:#fff8f8;border:1px solid #fdd;border-radius:8px;padding:12px;margin-top:16px">
+        <strong>💸 Rimborso</strong><br>${refundNote}
+      </div>
+      <p style="margin-top:20px;color:#888;font-size:0.85rem">Per assistenza rispondi a questa email.</p>
+    </div>`;
+
+  await axios.post(
+    'https://api.brevo.com/v3/smtp/email',
+    {
+      sender:      { name: 'Poke Whirlpool', email: process.env.BREVO_FROM },
+      to:          [{ email: to }],
+      subject:     `Rimborso per un articolo dell'ordine #${String(orderNumber).padStart(3,'0')}`,
+      htmlContent: html,
+    },
+    {
+      headers: {
+        'api-key':      process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
 // ── In-memory orders (same as before) ────────────────────────────────────────
 const orders = [];
 
@@ -308,6 +349,35 @@ app.patch('/api/orders/:id/reject', async (req, res) => {
   } catch (e) {
     console.error('Email send error:', e.message);
   }
+  res.json({ success: true, order });
+});
+
+app.patch('/api/orders/:id/items/:index/refund', async (req, res) => {
+  const order = orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  const idx  = parseInt(req.params.index, 10);
+  const item = order.items && order.items[idx];
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+  if (item.refunded) return res.json({ success: true, order });
+
+  item.refunded   = true;
+  item.refundedAt = new Date().toISOString();
+
+  const itemTotal = (item.price || 0) * (item.qty || 1);
+  order.total = Math.max(0, parseFloat(order.total || 0) - itemTotal);
+
+  try {
+    await sendItemRefundEmail({
+      to:            order.customerEmail,
+      orderNumber:   order.orderNumber,
+      itemName:      item.name,
+      paymentMethod: order.paymentMethod,
+    });
+    console.log(`📧  Refund email sent to ${order.customerEmail} for item "${item.name}"`);
+  } catch (e) {
+    console.error('Refund email send error:', e.message);
+  }
+
   res.json({ success: true, order });
 });
 
