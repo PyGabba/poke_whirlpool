@@ -210,6 +210,31 @@ function isPokeItem(item) {
     || item.name === 'Spicy Special Salmon';
 }
 
+function isBurgerItem(item) {
+  return (item.id && String(item.id).startsWith('burger-')) || /^hamburger/i.test(item.name || '');
+}
+
+// Detail: "Pane: X · Proteina: Y · Verdure: A, B · Formaggio: Z · Salsa: S · Topping: T · Extra: E, F · Menù: Bibita + patatine"
+function parseBurgerDetail(detail) {
+  const r = { pane: [], proteina: [], verdure: [], formaggio: [], salsa: [], topping: [], extra: [], menu: '' };
+  (detail || '').split('·').map(s => s.trim()).forEach(part => {
+    const c = part.indexOf(':');
+    if (c === -1) return;
+    const key = part.slice(0, c).trim().toLowerCase();
+    const val = part.slice(c + 1).trim();
+    const list = val.split(',').map(s => s.trim()).filter(Boolean);
+    if (key.startsWith('pane')) r.pane = list;
+    else if (key.startsWith('prot')) r.proteina = list;
+    else if (key.startsWith('verdur')) r.verdure = list;
+    else if (key.startsWith('formagg')) r.formaggio = list;
+    else if (key.startsWith('salsa') || key.startsWith('salse')) r.salsa = list;
+    else if (key.startsWith('topping')) r.topping = list;
+    else if (key.startsWith('extra')) r.extra = list;
+    else if (key.startsWith('men')) r.menu = val;
+  });
+  return r;
+}
+
 function parsePokeDetail(detail) {
   if (!detail) return null;
   const result = { base: [], proteine: [], verdure: [], salse: [], topping: [] };
@@ -259,8 +284,9 @@ function rowsForOrder(order) {
 
   // Refunded items are dropped from the kitchen view entirely — their row is removed.
   const indexedItems = order.items.map((item, i) => ({ item, i }));
-  const pokeItems  = indexedItems.filter(x => isPokeItem(x.item) && !x.item.refunded);
-  const otherItems = indexedItems.filter(x => !isPokeItem(x.item) && !x.item.refunded);
+  // Poke and burgers both get full kitchen rows (burgers are rendered by their own branch below)
+  const pokeItems  = indexedItems.filter(x => (isPokeItem(x.item) || isBurgerItem(x.item)) && !x.item.refunded);
+  const otherItems = indexedItems.filter(x => !isPokeItem(x.item) && !isBurgerItem(x.item) && !x.item.refunded);
 
   if (pokeItems.length === 0 && otherItems.length === 0) return ''; // nothing left to show for this order
 
@@ -273,7 +299,8 @@ function rowsForOrder(order) {
   const wantsChopsticks = !!order.bacchette || (order.notes && order.notes.toLowerCase().includes('bacchette'));
 
   const itemRows = pokeItems.map(({ item, i }, idx) => {
-    const parsed = parsePokeDetail(item.detail);
+    const isBurger = isBurgerItem(item);
+    const parsed = isBurger ? null : parsePokeDetail(item.detail);
     const refundBtn = `<button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa</button>`;
     const size   = sizeLabel(item.name);
     const isTradizionale = !item.detail || (!item.detail.includes('·') && !item.detail.includes('Base:'));
@@ -298,7 +325,7 @@ function rowsForOrder(order) {
          </td>`
       : '';
 
-    if (isTradizionale) {
+    if (isTradizionale && !isBurger) {
       return `
         <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
           <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
@@ -316,7 +343,7 @@ function rowsForOrder(order) {
         </tr>`;
     }
 
-    if (!parsed) {
+    if (!parsed && !isBurger) {
       return `
         <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
           <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
@@ -331,6 +358,36 @@ function rowsForOrder(order) {
           <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${itemWantsChopsticks ? 'checked' : ''}></td>
           ${allergyCell}
         </tr>`;
+    }
+    if (isBurger) {
+      const b = parseBurgerDetail(item.detail);
+      const tag = (cls, v) => `<span class="${cls}">${v}</span>`;
+      const qtyTxt = item.qty > 1 ? `<strong style="color:#c0392b">${item.qty}×</strong> ` : '';
+      const sizeCell = `<span class="size-badge" style="background:#fff0e0;color:#b25e00">${qtyTxt}🍔 ${b.menu ? 'Menù' : 'Burger'}</span>`
+        + (b.menu ? `<div style="font-size:0.72rem;color:#b25e00;margin-top:3px">${b.menu}</div>` : '');
+      const paneHTML = b.pane.map(p => `<span class="base-badge">${p}</span>`).join(' ');
+      const protHTML = b.proteina.map(p => tag('protein-tag ' + (/\+|angus|wagyu/i.test(p) ? 'protein-extra' : 'protein-plain'), p)).join('');
+      const vegHTML  = b.verdure.map(v => tag('veggie-tag', v)).join('')
+                     + b.formaggio.map(f => tag('veggie-tag', '🧀 ' + f)).join('');
+      const salsaHTML = b.salsa.map(s => tag('sauce-tag', s)).join('');
+      const topHTML  = b.topping.map(t => tag('topping-tag topping-plain', t)).join('')
+                     + b.extra.map(e => tag('topping-tag topping-extra', '+ ' + e)).join('');
+      return `
+      <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
+        <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+        <td>${sizeCell}</td>
+        <td>${paneHTML || '<span style="color:#ccc">—</span>'}</td>
+        <td>${protHTML || '<span style="color:#ccc">—</span>'}</td>
+        <td>${vegHTML || '<span style="color:#ccc">—</span>'}</td>
+        <td>${salsaHTML || '<span style="color:#ccc">—</span>'}</td>
+        <td>${topHTML || '<span style="color:#ccc">—</span>'}</td>
+        <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
+          <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
+          ${refundBtn}
+        </td>
+        <td class="td-chopsticks"></td>
+        ${allergyCell}
+      </tr>`;
     }
 
     const baseHTML  = parsed.base.map(b => `<span class="base-badge">${b}</span>`).join(' ');
