@@ -21,6 +21,7 @@ async function loadMenu() {
   menu = await res.json();
   renderPokeTradizonali();
   renderBuilderComponents();
+  renderBurgerBuilder();
   renderMenuList('antipastiList',  menu.antipasti,     'antipasti');
   renderMenuList('contorniList',   menu.contorni,      'contorni');
   renderMenuList('primiList',      menu.primiPiatti,   'primiPiatti');
@@ -59,10 +60,11 @@ function renderPokeTradizonali() {
 function renderBuilderComponents() {
   const { base, proteine, fruttaVerdura, salse, topping } = menu.pokeComponents;
   document.getElementById('baseGrid').innerHTML       = base.map(b => `<span class="chip" data-cat="base" data-val="${b}">${b}</span>`).join('');
-  document.getElementById('proteineGrid').innerHTML   = proteine.map(p => `<span class="chip${p.extra ? ' extra' : ''}" data-cat="proteine" data-val="${p.name}" data-extra="${p.extra}">${p.name}${p.extra ? ' +€1' : ''}</span>`).join('');
-  document.getElementById('fruttaGrid').innerHTML     = fruttaVerdura.map(f => `<span class="chip" data-cat="fruttaVerdura" data-val="${f}">${f}</span>`).join('');
-  document.getElementById('salseGrid').innerHTML      = salse.map(s => `<span class="chip" data-cat="salse" data-val="${s}">${s}</span>`).join('');
-  document.getElementById('toppingGrid').innerHTML    = topping.map(t => `<span class="chip${t.extra ? ' extra' : ''}" data-cat="topping" data-val="${t.name}" data-extra="${t.extra}">${t.name}${t.extra ? ' +€1' : ''}</span>`).join('');
+  document.getElementById('proteineGrid').innerHTML   = proteine.map(p => `<span class="chip${p.extra ? ' extra' : ''}" data-cat="proteine" data-val="${p.name}" data-extra="${p.extra}">${p.name}${p.extra ? ' +€' + p.extra : ''}</span>`).join('');
+  const chipHtml = (cat, o) => { o = typeof o === 'string' ? { name: o, extra: 0 } : o; return `<span class="chip${o.extra ? ' extra' : ''}" data-cat="${cat}" data-val="${o.name}" data-extra="${o.extra}">${o.name}${o.extra ? ' +€' + o.extra : ''}</span>`; };
+  document.getElementById('fruttaGrid').innerHTML     = fruttaVerdura.map(f => chipHtml('fruttaVerdura', f)).join('');
+  document.getElementById('salseGrid').innerHTML      = salse.map(s => chipHtml('salse', s)).join('');
+  document.getElementById('toppingGrid').innerHTML    = topping.map(t => `<span class="chip${t.extra ? ' extra' : ''}" data-cat="topping" data-val="${t.name}" data-extra="${t.extra}">${t.name}${t.extra ? ' +€' + t.extra : ''}</span>`).join('');
   document.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => toggleChip(chip)));
   updateBuilderQuotas();
 }
@@ -155,13 +157,24 @@ function updateBuilderQuotas() {
   renderBuilderSummary();
 }
 
+function calcPokePrice() {
+  const { proteine, fruttaVerdura, salse, topping, size } = pokeBuilder;
+  const limits = menu.pokeSizes[size];
+  const comps  = menu.pokeComponents;
+  let price = limits.price;
+  if (proteine.length > limits.proteine) price += (proteine.length - limits.proteine) * 2;
+  const extraOf = (list, name) => { const f = list.find(x => (typeof x === 'string' ? x : x.name) === name); return (f && f.extra) || 0; };
+  proteine.forEach(n      => price += extraOf(comps.proteine, n));
+  topping.forEach(n       => price += extraOf(comps.topping, n));
+  fruttaVerdura.forEach(n => price += extraOf(comps.fruttaVerdura, n));
+  salse.forEach(n         => price += extraOf(comps.salse, n));
+  return price;
+}
+
 function renderBuilderSummary() {
   const { base, proteine, fruttaVerdura, salse, topping, size } = pokeBuilder;
   const limits = menu.pokeSizes[size];
-  let price = limits.price;
-  if (proteine.length > limits.proteine) price += (proteine.length - limits.proteine) * 2;
-  [...proteine].forEach(item => { const f = menu.pokeComponents.proteine.find(x => x.name === item); if (f && f.extra) price += 1; });
-  [...topping].forEach(item  => { const f = menu.pokeComponents.topping.find(x => x.name === item);  if (f && f.extra) price += 1; });
+  const price = calcPokePrice();
   const parts = [];
   if (base.length)          parts.push(`🍚 ${base.join(', ')}`);
   if (proteine.length)      parts.push(`🐟 ${proteine.join(', ')}`);
@@ -177,10 +190,7 @@ document.getElementById('addPokeBtn').addEventListener('click', () => {
   const { base, proteine, fruttaVerdura, salse, topping, size } = pokeBuilder;
   if (!base.length || !proteine.length) { alert('Seleziona almeno una base e una proteina!'); return; }
   const limits = menu.pokeSizes[size];
-  let price = limits.price;
-  if (proteine.length > limits.proteine) price += (proteine.length - limits.proteine) * 2;
-  [...proteine].forEach(item => { const f = menu.pokeComponents.proteine.find(x => x.name === item); if (f && f.extra) price += 1; });
-  [...topping].forEach(item  => { const f = menu.pokeComponents.topping.find(x => x.name === item);  if (f && f.extra) price += 1; });
+  const price = calcPokePrice();
   const parts = [];
   if (base.length)          parts.push(`Base: ${base.join(', ')}`);
   if (proteine.length)      parts.push(`Proteine: ${proteine.join(', ')}`);
@@ -808,3 +818,106 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('rejectedModal').classList.remove('show');
   });
 });
+
+
+// ── Hamburger componibile ─────────────────────────────────────────────────────
+let burgerBuilder = null;
+const BURGER_LIMITS = { pane: 1, proteina: 1, verdure: 2, formaggio: 1, salsa: 1, topping: 1 };   // 'extra' = illimitati
+
+function resetBurger() {
+  burgerBuilder = { pane: [], proteina: [], verdure: [], formaggio: [], salsa: [], topping: [], extra: [], menu: false, bevanda: 'Bibita' };
+}
+
+function burgerOpt(o) { return typeof o === 'string' ? { name: o, extra: 0 } : o; }
+
+function renderBurgerBuilder() {
+  resetBurger();
+  const b = menu.burger;
+  const render = (cat, list, flatExtra) => {
+    document.getElementById('burger-' + cat + 'Grid').innerHTML = list.map(burgerOpt).map(o => {
+      const x = flatExtra || o.extra;
+      return `<span class="chip burger-chip${x ? ' extra' : ''}" data-bcat="${cat}" data-val="${o.name}" data-extra="${x}">${o.name}${x ? ' +€' + x : ''}</span>`;
+    }).join('');
+  };
+  render('pane', b.pane);
+  render('proteina', b.proteina);
+  render('verdure', b.verdure);
+  render('formaggio', b.formaggio);
+  render('salsa', b.salsa);
+  render('topping', b.topping);
+  render('extra', b.extra, 1);
+  document.getElementById('burgerMenuPrice').textContent = '+ € ' + b.menuExtra.toFixed(2).replace('.', ',');
+  document.getElementById('burgerBevanda').innerHTML = b.bevande.map(v => `<option value="${v}">${v}</option>`).join('');
+  document.querySelectorAll('.burger-chip').forEach(chip => chip.addEventListener('click', () => toggleBurgerChip(chip)));
+  document.getElementById('burgerMenuCheck').addEventListener('change', e => { burgerBuilder.menu = e.target.checked; updateBurgerUI(); });
+  document.getElementById('burgerBevanda').addEventListener('change', e => { burgerBuilder.bevanda = e.target.value; updateBurgerUI(); });
+  document.getElementById('addBurgerBtn').addEventListener('click', addBurgerToCart);
+  updateBurgerUI();
+}
+
+function toggleBurgerChip(chip) {
+  const cat = chip.dataset.bcat, val = chip.dataset.val;
+  const list = burgerBuilder[cat];
+  const limit = BURGER_LIMITS[cat];
+  const i = list.indexOf(val);
+  if (i >= 0) list.splice(i, 1);
+  else if (!limit) list.push(val);                       // extra: nessun limite
+  else if (limit === 1) burgerBuilder[cat] = [val];      // scelta singola: sostituisce
+  else if (list.length < limit) list.push(val);
+  updateBurgerUI();
+}
+
+function calcBurgerPrice() {
+  const b = menu.burger;
+  let price = b.price;
+  const extraOf = (list, name) => { const f = list.map(burgerOpt).find(x => x.name === name); return (f && f.extra) || 0; };
+  burgerBuilder.pane.forEach(n     => price += extraOf(b.pane, n));
+  burgerBuilder.proteina.forEach(n => price += extraOf(b.proteina, n));
+  price += burgerBuilder.extra.length;
+  if (burgerBuilder.menu) price += b.menuExtra;
+  return price;
+}
+
+function burgerDetail() {
+  const bb = burgerBuilder;
+  const parts = [];
+  if (bb.pane.length)      parts.push(`Pane: ${bb.pane.join(', ')}`);
+  if (bb.proteina.length)  parts.push(`Proteina: ${bb.proteina.join(', ')}`);
+  if (bb.verdure.length)   parts.push(`Verdure: ${bb.verdure.join(', ')}`);
+  if (bb.formaggio.length) parts.push(`Formaggio: ${bb.formaggio.join(', ')}`);
+  if (bb.salsa.length)     parts.push(`Salsa: ${bb.salsa.join(', ')}`);
+  if (bb.topping.length)   parts.push(`Topping: ${bb.topping.join(', ')}`);
+  if (bb.extra.length)     parts.push(`Extra: ${bb.extra.join(', ')}`);
+  if (bb.menu)             parts.push(`Menù: ${bb.bevanda} + patatine`);
+  return parts.join(' · ');
+}
+
+function updateBurgerUI() {
+  const bb = burgerBuilder;
+  [['pane','burger-paneQuota'],['proteina','burger-proteinaQuota'],['verdure','burger-verdureQuota'],['formaggio','burger-formaggioQuota'],['salsa','burger-salsaQuota'],['topping','burger-toppingQuota']].forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    el.textContent = `${bb[k].length}/${BURGER_LIMITS[k]}`;
+    el.classList.toggle('full', bb[k].length >= BURGER_LIMITS[k]);
+  });
+  document.querySelectorAll('.burger-chip').forEach(chip => {
+    const cat = chip.dataset.bcat, limit = BURGER_LIMITS[cat];
+    const sel = bb[cat].includes(chip.dataset.val);
+    chip.classList.toggle('selected', sel);
+    chip.classList.toggle('disabled', !sel && limit > 1 && bb[cat].length >= limit);
+  });
+  document.getElementById('burgerBevandaWrap').style.display = bb.menu ? '' : 'none';
+  const detail = burgerDetail();
+  document.getElementById('burgerSummary').innerHTML =
+    (detail ? `<div style="margin-bottom:0.4rem;font-size:0.85rem">${detail.split(' · ').join('<br>')}</div>` : '') +
+    `<strong style="color:var(--red)">€ ${calcBurgerPrice().toFixed(2).replace('.', ',')}</strong>`;
+}
+
+function addBurgerToCart() {
+  const bb = burgerBuilder;
+  if (!bb.pane.length || !bb.proteina.length) { alert('Seleziona almeno il pane e una proteina!'); return; }
+  if (bb.verdure.length < BURGER_LIMITS.verdure && !confirm('Hai scelto meno di 2 verdure. Continuare?')) return;
+  addToCart({ id: 'burger-' + Date.now(), name: bb.menu ? 'Hamburger Menù' : 'Hamburger', price: calcBurgerPrice(), detail: burgerDetail(), qty: 1 });
+  resetBurger();
+  updateBurgerUI();
+  document.getElementById('burgerMenuCheck').checked = false;
+}

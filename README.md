@@ -23,7 +23,7 @@ Customers browse the full menu, build custom poke bowls, and pay via PayPal or S
 
 ### Customer Page (`/`)
 - **Poke Builder** — Choose size (Small / Regular / Large) then configure base, proteins, fruit & vegetables, sauces, and toppings. Slot quotas enforced per size; repeating the same ingredient is supported. Extra proteins +€2.00, premium toppings (Tobiko, Ikura, Philadelphia…) +€1.00.
-- **Traditional Poke** — Fixed recipes at €9.90: Pokai, Poke Classic, Spicy Special Salmon.
+- **Traditional Poke** — Fixed recipes at €9.90: Pokai, Poke Classic, Spicy Special Salmon, Vegetariano.
 - **Full Menu** — Antipasti, Contorni, Primi Piatti, Secondi Piatti with ± quantity controls.
 - **Returning Customer Recognition** — Last order and saved favourites loaded by name for one-tap re-ordering.
 - **Cart Drawer** — Live item list with running total before checkout.
