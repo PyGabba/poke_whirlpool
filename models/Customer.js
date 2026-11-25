@@ -11,7 +11,9 @@ const favouriteItemSchema = new mongoose.Schema({
 });
 
 const orderHistorySchema = new mongoose.Schema({
+  orderId:     { type: String },            // uuid of the in-memory order (orderNumber resets on restart)
   orderNumber: { type: Number },
+  rejected:    { type: Boolean, default: false },
   customer:    { type: String },
   date:        { type: Date },
   items:       { type: Array, default: [] },
