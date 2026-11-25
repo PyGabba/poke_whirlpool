@@ -345,9 +345,17 @@ async function submitOrder(paymentMethod) {
   return { data: await res.json(), total };
 }
 
-function showSuccessModal(orderNumber, name, total) {
-  document.getElementById('modalText').textContent =
-    `Ordine #${orderNumber}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
+function showSuccessModal(orderNumber, name, total, realOrderCount) {
+  const modalText = document.getElementById('modalText');
+  modalText.textContent = `Ordine #${orderNumber}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
+  if (realOrderCount) {
+    const line = document.createElement('div');
+    line.style.cssText = 'margin-top:0.6rem;font-weight:600';
+    line.textContent = realOrderCount === 1
+      ? '🎉 È il tuo primo ordine!'
+      : `🎉 Con questo, hai effettuato ${realOrderCount} ordini`;
+    modalText.appendChild(line);
+  }
   document.getElementById('successModal').classList.add('show');
   cart = [];
   document.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
@@ -395,7 +403,7 @@ function setupOrder() {
     const name = document.getElementById('customerName').value;
     try {
       const { data, total } = await submitOrder('satispay');
-      if (data.success) { closeSatispayModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total); startRejectionPolling(data.order.id); }
+      if (data.success) { closeSatispayModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total, data.realOrderCount); startRejectionPolling(data.order.id); }
     } catch(e) { alert("Errore nell'invio. Riprova."); }
     btn.querySelector('#satispayBtnText').textContent = '✓ Ho pagato — Invia ordine';
     btn.disabled = false;
@@ -414,7 +422,7 @@ function setupOrder() {
     const name = document.getElementById('customerName').value;
     try {
       const { data, total } = await submitOrder('paypal');
-      if (data.success) { closePaypalModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total); startRejectionPolling(data.order.id); }
+      if (data.success) { closePaypalModal(); closeCart(); showSuccessModal(data.order.orderNumber, name, total, data.realOrderCount); startRejectionPolling(data.order.id); }
     } catch(e) { alert("Errore nell'invio. Riprova."); }
     btn.querySelector('#paypalBtnText').textContent = '✓ Ho pagato — Invia ordine';
     btn.disabled = false;
