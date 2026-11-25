@@ -332,6 +332,20 @@ app.get('/kitchen', (req, res) => res.sendFile(path.join(__dirname, 'public', 'k
 app.get('/api/menu', (req, res) => res.json(menu));
 
 // ── Orders ────────────────────────────────────────────────────────────────────
+// A "real" order = not rejected and with at least one item that wasn't refunded.
+function isRealHistoryEntry(e) {
+  if (!e || e.rejected) return false;
+  const items = e.items || [];
+  return items.length === 0 || items.some(i => !i.refunded);
+}
+function countRealOrders(doc, customer) {
+  return (doc.orderHistory || []).filter(e => e.customer === customer && isRealHistoryEntry(e)).length;
+}
+// Fallback when MongoDB is unavailable: count from this session's in-memory orders.
+function countRealOrdersInMemory(customer) {
+  return orders.filter(o => o.customerName === customer && o.status !== 'rejected' && (o.items || []).some(i => !i.refunded)).length;
+}
+
 app.post('/api/orders', async (req, res) => {
   const { customerName, tableNumber, items, total, notes, bacchette, customerEmail, paymentMethod } = req.body;
   const customer = customerName ? customerName.trim() : null;
@@ -350,9 +364,12 @@ app.post('/api/orders', async (req, res) => {
   orders.push(order);
 
   // Persist order history to MongoDB
+  let realOrderCount = null;
   if (customer) {
+    realOrderCount = countRealOrdersInMemory(customer);
     try {
       const historyEntry = {
+        orderId:     order.id,
         orderNumber: order.orderNumber,
         customer:    order.customerName,
         date:        order.createdAt,
@@ -365,15 +382,17 @@ app.post('/api/orders', async (req, res) => {
       if (doc) {
         doc.orderHistory.push(historyEntry);
         await doc.save();
+        realOrderCount = countRealOrders(doc, customer);
       } else {
-        await Customer.create({ orderHistory: [historyEntry], favourites: [] });
+        const created = await Customer.create({ orderHistory: [historyEntry], favourites: [] });
+        realOrderCount = countRealOrders(created, customer);
       }
     } catch (err) {
       console.error('Failed to save order history:', err.message);
     }
   }
 
-  res.json({ success: true, order });
+  res.json({ success: true, order, realOrderCount });
 });
 
 app.get('/api/orders', (req, res) => {
@@ -395,6 +414,11 @@ app.patch('/api/orders/:id/reject', async (req, res) => {
   if (!order) return res.status(404).json({ error: 'Order not found' });
   order.status = 'rejected';
   order.rejectionReason = req.body.reason || '';
+  try {
+    await Customer.updateOne({ 'orderHistory.orderId': order.id }, { $set: { 'orderHistory.$.rejected': true } });
+  } catch (e) {
+    console.error('Failed to mark history entry rejected:', e.message);
+  }
   try {
     await sendRejectionEmail({
       to:            order.customerEmail,
@@ -422,6 +446,19 @@ app.patch('/api/orders/:id/items/:index/refund', async (req, res) => {
 
   const itemTotal = (item.price || 0) * (item.qty || 1);
   order.total = Math.max(0, parseFloat(order.total || 0) - itemTotal);
+
+  try {
+    await Customer.updateOne(
+      { 'orderHistory.orderId': order.id },
+      { $set: {
+          ['orderHistory.$.items.' + idx + '.refunded']:   true,
+          ['orderHistory.$.items.' + idx + '.refundedAt']: item.refundedAt,
+          'orderHistory.$.total': order.total,
+      } }
+    );
+  } catch (e) {
+    console.error('Failed to mark history item refunded:', e.message);
+  }
 
   try {
     await sendItemRefundEmail({
@@ -460,6 +497,7 @@ app.get('/api/customer/:name', async (req, res) => {
     res.json({
       customer,
       found:      doc.orderHistory.length > 0,
+      realOrderCount: countRealOrders(doc, customer),
       history:    doc.orderHistory,
       favourites: doc.favourites,
     });
