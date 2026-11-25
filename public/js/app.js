@@ -347,13 +347,12 @@ async function submitOrder(paymentMethod) {
 
 function showSuccessModal(orderNumber, name, total, realOrderCount) {
   const modalText = document.getElementById('modalText');
-  modalText.textContent = `Ordine #${orderNumber}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
+  modalText.textContent = `Ordine #${realOrderCount}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
   if (realOrderCount) {
     const line = document.createElement('div');
     line.style.cssText = 'margin-top:0.6rem;font-weight:600';
     line.textContent = realOrderCount === 1
-      ? '🎉 È il tuo primo ordine!'
-      : `🎉 Con questo, hai effettuato ${realOrderCount} ordini`;
+      ? '🎉 È il tuo primo ordine!';
     modalText.appendChild(line);
   }
   document.getElementById('successModal').classList.add('show');
@@ -459,7 +458,7 @@ function openPaypalModal() {
   const btn     = document.getElementById('paypalConfirm');
   const timerEl = document.getElementById('paypalTimer');
   btn.disabled = true; timerEl.style.display = 'flex';
-  let remaining = 30; timerEl.textContent = remaining;
+  let remaining = 15; timerEl.textContent = remaining;
   clearInterval(_paypalTimerInterval);
   _paypalTimerInterval = setInterval(() => {
     remaining--; timerEl.textContent = remaining;
@@ -495,7 +494,7 @@ function openSatispayModal() {
   const btn     = document.getElementById('satispayConfirm');
   const timerEl = document.getElementById('satispayTimer');
   btn.disabled = true; timerEl.style.display = 'flex';
-  let remaining = 30; timerEl.textContent = remaining;
+  let remaining = 15; timerEl.textContent = remaining;
   clearInterval(_satispayTimerInterval);
   _satispayTimerInterval = setInterval(() => {
     remaining--; timerEl.textContent = remaining;
