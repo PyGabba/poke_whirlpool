@@ -186,21 +186,30 @@ function renderBuilderSummary() {
     `<strong style="color:var(--red)">€ ${price.toFixed(2).replace('.', ',')}</strong>`;
 }
 
-document.getElementById('addPokeBtn').addEventListener('click', () => {
+function pokeCartData() {
   const { base, proteine, fruttaVerdura, salse, topping, size } = pokeBuilder;
-  if (!base.length || !proteine.length) { alert('Seleziona almeno una base e una proteina!'); return; }
-  const limits = menu.pokeSizes[size];
-  const price = calcPokePrice();
+  if (!base.length || !proteine.length) { alert('Seleziona almeno una base e una proteina!'); return null; }
   const parts = [];
   if (base.length)          parts.push(`Base: ${base.join(', ')}`);
   if (proteine.length)      parts.push(`Proteine: ${proteine.join(', ')}`);
   if (fruttaVerdura.length) parts.push(`Verdure: ${fruttaVerdura.join(', ')}`);
   if (salse.length)         parts.push(`Salse: ${salse.join(', ')}`);
   if (topping.length)       parts.push(`Topping: ${topping.join(', ')}`);
-  addToCart({ id: 'poke-' + Date.now(), name: `Poke ${size.charAt(0).toUpperCase() + size.slice(1)}`, price, detail: parts.join(' · '), qty: 1 });
+  return { name: `Poke ${size.charAt(0).toUpperCase() + size.slice(1)}`, price: calcPokePrice(), detail: parts.join(' · ') };
+}
+
+document.getElementById('addPokeBtn').addEventListener('click', () => {
+  const data = pokeCartData();
+  if (!data) return;
+  addToCart({ id: 'poke-' + Date.now(), name: data.name, price: data.price, detail: data.detail, qty: 1 });
   pokeBuilder = { size: pokeBuilder.size, base: [], proteine: [], fruttaVerdura: [], salse: [], topping: [] };
   document.querySelectorAll('.chip').forEach(c => { c.classList.remove('selected'); const b = c.querySelector('.chip-count'); if (b) b.remove(); });
   updateBuilderQuotas();
+});
+
+document.getElementById('favPokeBtn').addEventListener('click', () => {
+  const data = pokeCartData();
+  if (data) saveCustomFavourite('poke', data);
 });
 
 // ── renderMenuList — now includes ♥ favourite button ─────────────────────────
@@ -347,12 +356,21 @@ async function submitOrder(paymentMethod) {
 
 function showSuccessModal(orderNumber, name, total, realOrderCount) {
   const modalText = document.getElementById('modalText');
+<<<<<<< HEAD
   modalText.textContent = `Ordine #${realOrderCount}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
+=======
+  modalText.textContent = `Ordine #${orderNumber}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
+>>>>>>> b67fbc9 (Update menu/prices, add burger builder, custom favourites, real order count)
   if (realOrderCount) {
     const line = document.createElement('div');
     line.style.cssText = 'margin-top:0.6rem;font-weight:600';
     line.textContent = realOrderCount === 1
+<<<<<<< HEAD
       ? '🎉 È il tuo primo ordine!';
+=======
+      ? '🎉 È il tuo primo ordine!'
+      : `🎉 Con questo, hai effettuato ${realOrderCount} ordini`;
+>>>>>>> b67fbc9 (Update menu/prices, add burger builder, custom favourites, real order count)
     modalText.appendChild(line);
   }
   document.getElementById('successModal').classList.add('show');
@@ -585,10 +603,13 @@ function renderHistoryPanel(history, panel) {
     <div class="fav-list">
       ${_favourites.map(f => `
         <div class="fav-item">
-          <span class="fav-item-name">${f.name}</span>
+          <div class="fav-item-info">
+            <span class="fav-item-name">${escHtml(f.name)}</span>
+            ${f.detail ? `<span class="fav-item-detail">${escHtml(f.detail)}</span>` : ''}
+          </div>
           <span class="fav-item-price">€ ${parseFloat(f.price).toFixed(2).replace('.', ',')}</span>
-          <button class="add-btn" onclick="addFavouriteToCart('${f.itemId}','${f.name.replace(/'/g, "\\'")}',${f.price})">+ Aggiungi</button>
-          <button class="remove-fav-btn" onclick="toggleFavourite('${f.itemId}','${f.name.replace(/'/g, "\\'")}','${f.category}',${f.price})">✕</button>
+          <button class="add-btn" data-id="${escHtml(f.itemId)}" onclick="addFavouriteById(this.dataset.id)">+ Aggiungi</button>
+          <button class="remove-fav-btn" data-id="${escHtml(f.itemId)}" onclick="removeFavouriteById(this.dataset.id)">✕</button>
         </div>
       `).join('')}
     </div>
@@ -626,6 +647,60 @@ function reorder(historyIdx) {
 }
 
 // ===== FAVOURITES =============================================================
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+// Save a custom-built poke/burger as a favourite. data = { name, price, detail } (cart-item shape).
+async function saveCustomFavourite(type, data) {
+  if (!_currentCode) {
+    alert('Inserisci il tuo nome per salvare i preferiti!');
+    return;
+  }
+  const defaultLabel = `${data.name} personalizzato`;
+  const label = (prompt('Dai un nome al tuo preferito:', defaultLabel) || '').trim();
+  if (!label) return;
+  const itemId = `custom-${type}-${Date.now()}`;
+  try {
+    const res = await fetch(`/api/customer/${encodeURIComponent(_currentCode)}/favourites`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        itemId,
+        name:     label.slice(0, 60),
+        category: type === 'poke' ? 'customPoke' : 'customBurger',
+        price:    data.price,
+        detail:   data.detail,
+        config:   { type, cartName: data.name },
+      }),
+    });
+    const out = await res.json();
+    _favourites = out.favourites || _favourites;
+    const panel = document.getElementById('historyPanel');
+    if (panel.style.display !== 'none' && _currentHistory) renderHistoryPanel(_currentHistory, panel);
+    alert('♥ Salvato nei preferiti!');
+  } catch (err) {
+    console.error('Save custom favourite error:', err);
+    alert('Errore nel salvataggio. Riprova.');
+  }
+}
+
+function addFavouriteById(itemId) {
+  const f = _favourites.find(x => x.itemId === itemId);
+  if (!f) return;
+  if (f.config && f.config.type) {
+    // custom poke/burger: fresh unique id so identical copies never merge; kitchen recognises 'poke-'/'burger-' ids
+    addToCart({ id: `${f.config.type}-${Date.now()}`, name: f.config.cartName || f.name, price: f.price, detail: f.detail || '', qty: 1 });
+  } else {
+    addFavouriteToCart(f.itemId, f.name, f.price);
+  }
+}
+
+function removeFavouriteById(itemId) {
+  const f = _favourites.find(x => x.itemId === itemId);
+  if (f) toggleFavourite(f.itemId, f.name, f.category, f.price);
+}
 
 function isFavourite(itemId) {
   return _favourites.some(f => f.itemId === itemId);
@@ -859,6 +934,10 @@ function renderBurgerBuilder() {
   document.getElementById('burgerMenuCheck').addEventListener('change', e => { burgerBuilder.menu = e.target.checked; updateBurgerUI(); });
   document.getElementById('burgerBevanda').addEventListener('change', e => { burgerBuilder.bevanda = e.target.value; updateBurgerUI(); });
   document.getElementById('addBurgerBtn').addEventListener('click', addBurgerToCart);
+  document.getElementById('favBurgerBtn').addEventListener('click', () => {
+    const data = burgerCartData();
+    if (data) saveCustomFavourite('burger', data);
+  });
   updateBurgerUI();
 }
 
@@ -919,11 +998,17 @@ function updateBurgerUI() {
     `<strong style="color:var(--red)">€ ${calcBurgerPrice().toFixed(2).replace('.', ',')}</strong>`;
 }
 
-function addBurgerToCart() {
+function burgerCartData() {
   const bb = burgerBuilder;
-  if (!bb.pane.length || !bb.proteina.length) { alert('Seleziona almeno il pane e una proteina!'); return; }
-  if (bb.verdure.length < BURGER_LIMITS.verdure && !confirm('Hai scelto meno di 2 verdure. Continuare?')) return;
-  addToCart({ id: 'burger-' + Date.now(), name: bb.menu ? 'Hamburger Menù' : 'Hamburger', price: calcBurgerPrice(), detail: burgerDetail(), qty: 1 });
+  if (!bb.pane.length || !bb.proteina.length) { alert('Seleziona almeno il pane e una proteina!'); return null; }
+  if (bb.verdure.length < BURGER_LIMITS.verdure && !confirm('Hai scelto meno di 2 verdure. Continuare?')) return null;
+  return { name: bb.menu ? 'Hamburger Menù' : 'Hamburger', price: calcBurgerPrice(), detail: burgerDetail() };
+}
+
+function addBurgerToCart() {
+  const data = burgerCartData();
+  if (!data) return;
+  addToCart({ id: 'burger-' + Date.now(), name: data.name, price: data.price, detail: data.detail, qty: 1 });
   resetBurger();
   updateBurgerUI();
   document.getElementById('burgerMenuCheck').checked = false;

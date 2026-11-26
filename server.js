@@ -510,7 +510,7 @@ app.get('/api/customer/:name', async (req, res) => {
 // ── Favourites: add ───────────────────────────────────────────────────────────
 app.post('/api/customer/:name/favourites', async (req, res) => {
   const customer = req.params.name.trim();
-  const { itemId, name: itemName, category = '', price = 0 } = req.body;
+  const { itemId, name: itemName, category = '', price = 0, detail = '', config = null } = req.body;
   if (!itemId || !itemName) {
     return res.status(400).json({ error: 'itemId and name are required' });
   }
@@ -521,7 +521,7 @@ app.post('/api/customer/:name/favourites', async (req, res) => {
     }
     // Remove existing entry with same itemId (dedup), then add
     doc.favourites = doc.favourites.filter(f => f.itemId !== itemId);
-    doc.favourites.push({ itemId, name: itemName, category, price });
+    doc.favourites.push({ itemId, name: itemName, category, price, detail, config });
     await doc.save();
     res.json({ success: true, favourites: doc.favourites });
   } catch (err) {

@@ -7,6 +7,8 @@ const favouriteItemSchema = new mongoose.Schema({
   name:     { type: String, required: true },
   category: { type: String, default: '' },
   price:    { type: Number, default: 0 },
+  detail:   { type: String, default: '' },                    // custom poke/burger: ingredient summary
+  config:   { type: mongoose.Schema.Types.Mixed, default: null }, // custom poke/burger: { type, cartName }
   addedAt:  { type: Date,   default: Date.now },
 });
 
