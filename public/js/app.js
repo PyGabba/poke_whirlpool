@@ -356,21 +356,13 @@ async function submitOrder(paymentMethod) {
 
 function showSuccessModal(orderNumber, name, total, realOrderCount) {
   const modalText = document.getElementById('modalText');
-<<<<<<< HEAD
-  modalText.textContent = `Ordine #${realOrderCount}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
-=======
-  modalText.textContent = `Ordine #${orderNumber}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
->>>>>>> b67fbc9 (Update menu/prices, add burger builder, custom favourites, real order count)
+  modalText.textContent = `Ordine #${realOrderCount || orderNumber}${name ? ` per ${name}` : ''} · € ${total.toFixed(2).replace('.', ',')}`;
   if (realOrderCount) {
     const line = document.createElement('div');
     line.style.cssText = 'margin-top:0.6rem;font-weight:600';
     line.textContent = realOrderCount === 1
-<<<<<<< HEAD
-      ? '🎉 È il tuo primo ordine!';
-=======
       ? '🎉 È il tuo primo ordine!'
       : `🎉 Con questo, hai effettuato ${realOrderCount} ordini`;
->>>>>>> b67fbc9 (Update menu/prices, add burger builder, custom favourites, real order count)
     modalText.appendChild(line);
   }
   document.getElementById('successModal').classList.add('show');
