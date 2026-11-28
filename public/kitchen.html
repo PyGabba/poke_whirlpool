@@ -160,6 +160,9 @@
       cursor: pointer; white-space: nowrap;
       background: #fde8e8; color: #c62828; transition: opacity 0.15s;
     }
+    .pill-unpaid { background: #fde8e8; color: #c62828; border: 1px solid #c62828; }
+    .paid-btn { background: #2e7d32; color: white; border: none; border-radius: 50px; padding: 5px 14px; font-weight: 600; cursor: pointer; }
+    .paid-btn:disabled { opacity: 0.5; cursor: default; }
     .refund-btn:hover { opacity: 0.8; }
     .refund-btn:disabled { background: #f0f0f0; color: #888; cursor: default; opacity: 1; }
     .refund-btn-sm {
@@ -281,6 +284,12 @@ function rowsForOrder(order) {
   } else if (order.status === 'ready') {
     actionBtn = `<span class="status-pill pill-ready">✅ Pronto</span>`;
   }
+
+  const payApp = { paypal: 'PayPal', satispay: 'Satispay' }[order.paymentMethod] || '';
+  actionBtn += order.paid
+    ? `<span class="status-pill pill-ready">💶 Pagato</span>`
+    : `<span class="status-pill pill-unpaid">❓ Da verificare ${payApp}</span>
+       <button class="paid-btn" onclick="markPaid('${order.id}', this)">Pagato</button>`;
 
   // Refunded items are dropped from the kitchen view entirely — their row is removed.
   const indexedItems = order.items.map((item, i) => ({ item, i }));
@@ -606,6 +615,20 @@ async function refundItem(orderId, itemIndex, btn) {
     if (!res.ok) throw new Error('refund failed');
   } catch (e) {
     alert('Errore nel rimborso.');
+    btn.disabled = false;
+    return;
+  }
+  loadOrders();
+}
+
+async function markPaid(orderId, btn) {
+  if (!confirm('Hai controllato il pagamento nell\'app?')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/orders/${orderId}/paid`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('mark paid failed');
+  } catch (e) {
+    alert('Errore nel salvataggio del pagamento.');
     btn.disabled = false;
     return;
   }

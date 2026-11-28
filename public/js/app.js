@@ -8,6 +8,8 @@ let _currentCode    = null; // currently entered customer code
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadMenu();
+  restoreCart();
+  resumeRejectionPolling();
   setupNav();
   setupSizeSelector();
   setupCart();
@@ -157,8 +159,8 @@ function updateBuilderQuotas() {
   renderBuilderSummary();
 }
 
-function calcPokePrice() {
-  const { proteine, fruttaVerdura, salse, topping, size } = pokeBuilder;
+function calcPokePrice(build = pokeBuilder) {
+  const { proteine, fruttaVerdura, salse, topping, size } = build;
   const limits = menu.pokeSizes[size];
   const comps  = menu.pokeComponents;
   let price = limits.price;
@@ -303,7 +305,50 @@ function removeFromCart(id) {
   updateCartUI();
 }
 
+// Voce salvata (storico o carrello) ricostruita col prezzo di oggi; null se non più ricostruibile
+function currentItem(item) {
+  const id = String(item.id);
+  const { refunded, refundedAt, ...clean } = item;
+  const custom = id.match(/^(poke|burger)-/);
+  if (custom) {
+    const d = {};
+    String(item.detail || '').split(' · ').forEach(part => {
+      const [label, values] = part.split(': ');
+      if (values) d[label] = values.split(', ');
+    });
+    const fresh = { ...clean, id: `${custom[1]}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    if (custom[1] === 'poke') {
+      const size = (String(item.name).match(/small|regular|large/i) || [''])[0].toLowerCase();
+      if (!menu.pokeSizes[size] || !d.Proteine) return null;
+      return { ...fresh, price: calcPokePrice({ size, proteine: d.Proteine, fruttaVerdura: d.Verdure || [], salse: d.Salse || [], topping: d.Topping || [] }) };
+    }
+    if (!d.Pane || !d.Proteina) return null;
+    return { ...fresh, price: calcBurgerPrice({ pane: d.Pane, proteina: d.Proteina, extra: d.Extra || [], menu: !!d['Menù'] }) };
+  }
+  const found = [menu.antipasti, menu.contorni, menu.primiPiatti, menu.secondiPiatti, menu.pokeTradizonali]
+    .flat().find(m => m.id === id.split('-')[0]);
+  // il nome deve coincidere: un id può passare a un altro piatto quando il menù cambia
+  if (!found || (item.name !== found.name && !String(item.name).startsWith(found.name + ' ('))) return null;
+  const piastra = id.endsWith('-piastra');
+  if (piastra && !found.piastra) return null;
+  return { ...clean, price: found.price + (piastra ? found.piastra : 0) };
+}
+
+function restoreCart() {
+  try {
+    cart = JSON.parse(localStorage.getItem('poke_cart') || '[]').map(currentItem).filter(Boolean);
+  } catch (e) {
+    cart = [];
+  }
+  cart.forEach(item => {
+    const el = document.getElementById('qty-' + item.id);
+    if (el) el.textContent = item.qty || 1;
+  });
+  updateCartUI();
+}
+
 function updateCartUI() {
+  localStorage.setItem('poke_cart', JSON.stringify(cart));
   const count = cart.reduce((s, i) => s + (i.qty || 1), 0);
   const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
   document.getElementById('cartCount').textContent    = count;
@@ -599,7 +644,7 @@ function renderHistoryPanel(history, panel) {
             <span class="fav-item-name">${escHtml(f.name)}</span>
             ${f.detail ? `<span class="fav-item-detail">${escHtml(f.detail)}</span>` : ''}
           </div>
-          <span class="fav-item-price">€ ${parseFloat(f.price).toFixed(2).replace('.', ',')}</span>
+          <span class="fav-item-price">${(i => i ? '€ ' + i.price.toFixed(2).replace('.', ',') : 'non disponibile')(favouriteItem(f))}</span>
           <button class="add-btn" data-id="${escHtml(f.itemId)}" onclick="addFavouriteById(this.dataset.id)">+ Aggiungi</button>
           <button class="remove-fav-btn" data-id="${escHtml(f.itemId)}" onclick="removeFavouriteById(this.dataset.id)">✕</button>
         </div>
@@ -619,10 +664,15 @@ function reorder(historyIdx) {
   const sorted = [..._currentHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
   const order  = sorted[historyIdx];
   if (!order || !order.items) return;
-  order.items.forEach(item => {
-    const existing = cart.find(c => c.id === item.id && !item.id.startsWith('poke-'));
+  const wanted  = order.items.filter(i => !i.refunded);
+  const items   = wanted.map(currentItem).filter(Boolean);
+  if (items.length < wanted.length) alert('Alcuni articoli non sono più nel menù e non sono stati aggiunti.');
+  if (!items.length) return;
+  const btn = event.target;
+  items.forEach(item => {
+    const existing = cart.find(c => c.id === item.id);
     if (existing) { existing.qty = (existing.qty || 1) + (item.qty || 1); }
-    else          { cart.push({ ...item }); }
+    else          { cart.push(item); }
     const qtyEl = document.getElementById('qty-' + item.id);
     if (qtyEl) {
       const current = parseInt(qtyEl.textContent) || 0;
@@ -632,7 +682,6 @@ function reorder(historyIdx) {
   if (order.notes)     document.getElementById('orderNotes').value  = order.notes;
   if (order.bacchette) document.getElementById('bacchette').checked = true;
   updateCartUI();
-  const btn = event.target;
   btn.textContent = '✓ Aggiunto!';
   btn.style.background = 'var(--green)';
   setTimeout(() => { btn.textContent = '↩ Riordina'; btn.style.background = ''; }, 1500);
@@ -678,15 +727,22 @@ async function saveCustomFavourite(type, data) {
   }
 }
 
+// Preferito col prezzo di oggi; null se non più disponibile
+function favouriteItem(f) {
+  const type = f.config && f.config.type;
+  // custom poke/burger: currentItem assegna un id unico 'poke-'/'burger-' che la cucina riconosce
+  return currentItem(type
+    ? { id: `${type}-`, name: f.config.cartName || f.name, detail: f.detail || '', qty: 1 }
+    : { id: f.itemId, name: f.name, detail: '', qty: 1 });
+}
+
 function addFavouriteById(itemId) {
   const f = _favourites.find(x => x.itemId === itemId);
   if (!f) return;
-  if (f.config && f.config.type) {
-    // custom poke/burger: fresh unique id so identical copies never merge; kitchen recognises 'poke-'/'burger-' ids
-    addToCart({ id: `${f.config.type}-${Date.now()}`, name: f.config.cartName || f.name, price: f.price, detail: f.detail || '', qty: 1 });
-  } else {
-    addFavouriteToCart(f.itemId, f.name, f.price);
-  }
+  const item = favouriteItem(f);
+  if (!item) { alert('Questo preferito non è più disponibile.'); return; }
+  if (f.config && f.config.type) addToCart(item);
+  else addFavouriteToCart(item.id, item.name, item.price);
 }
 
 function removeFavouriteById(itemId) {
@@ -838,8 +894,21 @@ const POLL_INTERVAL   = 10000; // 10 seconds
 
 function startRejectionPolling(orderId) {
   _pendingOrderId = orderId;
+  localStorage.setItem('poke_pending_order', orderId);
   stopRejectionPolling();
   _rejectionPoller = setInterval(checkForRejection, POLL_INTERVAL);
+}
+
+function resumeRejectionPolling() {
+  const orderId = localStorage.getItem('poke_pending_order');
+  if (!orderId) return;
+  startRejectionPolling(orderId);
+  checkForRejection();
+}
+
+function finishRejectionPolling() {
+  stopRejectionPolling();
+  localStorage.removeItem('poke_pending_order');
 }
 
 function stopRejectionPolling() {
@@ -850,13 +919,14 @@ async function checkForRejection() {
   if (!_pendingOrderId) return;
   try {
     const res  = await fetch(`/api/orders/${_pendingOrderId}/status-check`);
+    if (res.status === 404) return finishRejectionPolling();   // server riavviato: ordine perso
     if (!res.ok) return;
     const data = await res.json();
     if (data.status === 'rejected') {
-      stopRejectionPolling();
+      finishRejectionPolling();
       showRejectionModal(data);
     } else if (data.status === 'done' || data.status === 'ready') {
-      stopRejectionPolling();
+      finishRejectionPolling();
     }
   } catch (e) { /* ignore network errors */ }
 }
@@ -945,14 +1015,14 @@ function toggleBurgerChip(chip) {
   updateBurgerUI();
 }
 
-function calcBurgerPrice() {
+function calcBurgerPrice(bb = burgerBuilder) {
   const b = menu.burger;
   let price = b.price;
   const extraOf = (list, name) => { const f = list.map(burgerOpt).find(x => x.name === name); return (f && f.extra) || 0; };
-  burgerBuilder.pane.forEach(n     => price += extraOf(b.pane, n));
-  burgerBuilder.proteina.forEach(n => price += extraOf(b.proteina, n));
-  price += burgerBuilder.extra.length;
-  if (burgerBuilder.menu) price += b.menuExtra;
+  bb.pane.forEach(n     => price += extraOf(b.pane, n));
+  bb.proteina.forEach(n => price += extraOf(b.proteina, n));
+  price += bb.extra.length;
+  if (bb.menu) price += b.menuExtra;
   return price;
 }
 

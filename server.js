@@ -365,6 +365,7 @@ app.post('/api/orders', async (req, res) => {
     tableNumber:   tableNumber || '-',
     items, total, notes, bacchette: !!bacchette,
     status:        'pending',
+    paid:          false,   // confermato a mano dalla cucina
     createdAt:     new Date().toISOString(),
   };
   orders.push(order);
@@ -412,6 +413,13 @@ app.patch('/api/orders/:id/status', (req, res) => {
   const order = orders.find(o => o.id === req.params.id);
   if (!order) return res.status(404).json({ error: 'Order not found' });
   order.status = req.body.status;
+  res.json({ success: true, order });
+});
+
+app.patch('/api/orders/:id/paid', (req, res) => {
+  const order = orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  order.paid = true;
   res.json({ success: true, order });
 });
 
