@@ -270,6 +270,7 @@ const menu = {
       { name: 'Salmone Crudo',         extra: 0 },
       { name: 'Salmone Grill',         extra: 0 },
       { name: 'Salmone Tartare Spicy', extra: 1 },
+      { name: 'Salmone Affumicato',    extra: 1 },
       { name: 'Feta',                  extra: 0 },
       { name: 'Uova',                  extra: 0 },
       { name: 'Uova Marinate',         extra: 1 },
@@ -289,8 +290,9 @@ const menu = {
       { name: 'Gambero Fritto',        extra: 1 },
       { name: 'Branzino',              extra: 0 },
       { name: 'Prosciutto Cotto',      extra: 0 },
+      { name: 'Wurstel',               extra: 0 },
       { name: 'Anatra',                extra: 1 },
-      { name: 'Chele di Granchio',     extra: 0 },
+      { name: 'Chele di Granchio',     extra: 1 },
       { name: 'Mozzarella di Bufala',  extra: 1 },
       { name: 'Gambero Rosso',         extra: 2 },
     ],
@@ -303,7 +305,7 @@ const menu = {
     ],
     salse: [
       'Aceto Balsamico','Ponzu','Spicy Mayo',
-      'Soia','Sesamo Dressing','Sriracha',
+      'Soia','Soia senza Glutine','Sesamo Dressing','Sriracha',
       'Poke','Mango','Avocado Lime','Yogurt','Maionese','Salsa Rosa','Agro Piccante',
       { name: 'Tartufo', extra: 1 },
       "Olio Extra Vergine d'Oliva",'Soya Wasabi','Teriyaki',
@@ -319,10 +321,14 @@ const menu = {
       { name: 'Sesamo al Wasabi',    extra: 0 },
       { name: 'Polvere di Alghe Nori', extra: 0 },
       { name: 'Granella Pistacchio', extra: 0 },
+      { name: 'Granella Patatine',   extra: 0 },
       { name: 'Philadelphia',        extra: 1 },
     ],
   },
 };
+
+// Supplemento "su piastra": i primi stampati sopra quella riga del menù (pp1–pp24)
+menu.primiPiatti.slice(0, 24).forEach(p => p.piastra = 1);
 
 // ── Static pages ──────────────────────────────────────────────────────────────
 app.get('/',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

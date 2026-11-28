@@ -216,7 +216,7 @@ document.getElementById('favPokeBtn').addEventListener('click', () => {
 function renderMenuList(elId, items, category) {
   document.getElementById(elId).innerHTML = items.map(item => `
     <div class="menu-item">
-      <span class="menu-item-name">${item.name}</span>
+      <span class="menu-item-name">${item.name}${item.piastra ? `<br><button class="add-btn" onclick="addToCart({id:'${item.id}-piastra', name:'${item.name.replace(/'/g,"\\'")} (su piastra)', price:${item.price + item.piastra}, detail:'', qty:1})">+ Su piastra € ${(item.price + item.piastra).toFixed(2).replace('.', ',')}</button>` : ''}</span>
       <span class="menu-item-price">€ ${item.price.toFixed(2).replace('.', ',')}</span>
       <div class="qty-ctrl">
         <button class="fav-btn ${isFavourite(item.id) ? 'fav-active' : ''}"
