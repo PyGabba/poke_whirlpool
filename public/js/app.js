@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSizeSelector();
   setupCart();
   setupCustomerCode();
+  setupNames();
   setupOrder();
   setupEmailMemory();
 });
@@ -348,6 +349,12 @@ function restoreCart() {
 }
 
 function updateCartUI() {
+  // un nome per porzione: se la quantità scende, i nomi in più si perdono
+  cart.forEach(item => {
+    if (!item.people && !item.person) return;
+    item.people = peopleFor(item);
+    delete item.person;
+  });
   localStorage.setItem('poke_cart', JSON.stringify(cart));
   const count = cart.reduce((s, i) => s + (i.qty || 1), 0);
   const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
@@ -363,6 +370,7 @@ function updateCartUI() {
         <span class="cart-item-price">€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</span>
       </div>
       ${item.detail ? `<p class="cart-item-detail">${item.detail}</p>` : ''}
+      ${portionSelects(item)}
       <div class="cart-item-actions"><button class="remove-btn" onclick="removeFromCart('${item.id}')">✕ Rimuovi</button></div>
     </div>
   `).join('');
@@ -389,8 +397,8 @@ async function submitOrder(paymentMethod) {
     body: JSON.stringify({
       customerName:  document.getElementById('customerName').value,
       customerEmail: document.getElementById('customerEmail').value.trim() || null,
-      items:        cart,
-      total:        total.toFixed(2),
+      items:        splitByPerson(cart, mainName()),
+      total:       total.toFixed(2),
       notes:        document.getElementById('orderNotes').value,
       bacchette:    document.getElementById('bacchette').checked,
       paymentMethod: paymentMethod || 'unknown',
@@ -414,11 +422,10 @@ function showSuccessModal(orderNumber, name, total, realOrderCount) {
   cart = [];
   document.querySelectorAll('.qty-val').forEach(el => el.textContent = '0');
   updateCartUI();
-  document.getElementById('customerName').value  = '';
   document.getElementById('customerEmail').value = '';
   document.getElementById('orderNotes').value    = '';
   document.getElementById('bacchette').checked   = false;
-  resetCodeUI();
+  useMainName();
 }
 
 function validateName() {
@@ -563,6 +570,112 @@ function closeSatispayModal() {
   document.getElementById('satispayModal').classList.remove('show');
 }
 
+// ===== NOMI: principale e colleghi, salvati sul dispositivo =====
+let _names = loadNames();
+
+function loadNames() {
+  let others = [];
+  try {
+    const list = JSON.parse(localStorage.getItem('poke_other_names') || '[]');
+    if (Array.isArray(list)) others = list.map(cleanName).filter(Boolean);
+  } catch (e) { /* dati corrotti: si riparte senza colleghi */ }
+  return { main: cleanName(localStorage.getItem('poke_main_name')), others };
+}
+
+function saveNames(main, others) {
+  _names = { main, others: [...new Set(others.map(cleanName).filter(n => n && n !== main))] };
+  localStorage.setItem('poke_main_name', _names.main);
+  localStorage.setItem('poke_other_names', JSON.stringify(_names.others));
+}
+
+// Il nome scritto nell'ordine vince su quello salvato
+function mainName() {
+  return document.getElementById('customerName').value.trim() || _names.main;
+}
+
+function useMainName() {
+  document.getElementById('customerName').value = _names.main;
+  document.getElementById('namesBtnLabel').textContent = _names.main;
+  resetCodeUI();
+  if (_names.main) lookupCode(_names.main);
+}
+
+function portionSelects(item) {
+  const main = mainName();
+  const people = peopleFor(item);
+  return people.map((who, i) => {
+    const names = [...new Set([..._names.others, who])].filter(n => n && n !== main);
+    return `<label class="portion-person">Per${people.length > 1 ? ' (' + (i + 1) + ')' : ''}:
+      <select data-id="${escHtml(item.id)}" data-i="${i}" onchange="setPerson(this)">
+        <option value="">${escHtml(main || 'Io')}</option>
+        ${names.map(n => `<option value="${escHtml(n)}"${n === who ? ' selected' : ''}>${escHtml(n)}</option>`).join('')}
+        <option value="__new">+ Nuovo nome</option>
+      </select></label>`;
+  }).join('');
+}
+
+function setPerson(select) {
+  const item = cart.find(c => c.id === select.dataset.id);
+  if (!item) return;
+  let who = select.value;
+  if (who === '__new') {
+    who = cleanName(prompt('Nome del collega:'));
+    if (!who) return updateCartUI();
+    saveNames(_names.main, [..._names.others, who]);
+  }
+  const people = peopleFor(item);
+  people[select.dataset.i] = who === mainName() ? '' : who;
+  item.people = people;
+  delete item.person;
+  updateCartUI();
+}
+
+function addNameRow(value) {
+  const row = document.createElement('div');
+  row.className = 'name-row';
+  const input = document.createElement('input');
+  input.maxLength = 40;
+  input.value = value;
+  input.setAttribute('aria-label', 'Nome del collega');
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.textContent = '✕';
+  remove.setAttribute('aria-label', 'Rimuovi collega');
+  remove.addEventListener('click', () => row.remove());
+  row.append(input, remove);
+  document.getElementById('otherNames').appendChild(row);
+  return input;
+}
+
+function openNamesModal() {
+  document.getElementById('mainNameInput').value = _names.main;
+  document.getElementById('otherNames').innerHTML = '';
+  _names.others.forEach(addNameRow);
+  document.getElementById('namesCancel').hidden = !_names.main;   // al primo accesso il nome è obbligatorio
+  document.getElementById('namesModal').classList.add('show');
+  document.getElementById('mainNameInput').focus();
+}
+
+function setupNames() {
+  const modal = document.getElementById('namesModal');
+  document.getElementById('namesBtn').addEventListener('click', openNamesModal);
+  document.getElementById('namesCancel').addEventListener('click', () => modal.classList.remove('show'));
+  document.getElementById('addNameBtn').addEventListener('click', () => addNameRow('').focus());
+  document.getElementById('customerName').addEventListener('input', updateCartUI);
+  document.getElementById('namesForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const main = cleanName(document.getElementById('mainNameInput').value);
+    if (!main) return document.getElementById('mainNameInput').focus();
+    saveNames(main, [...document.querySelectorAll('#otherNames input')].map(i => i.value));
+    modal.classList.remove('show');
+    useMainName();
+    updateCartUI();
+  });
+  useMainName();
+  updateCartUI();
+  if (!_names.main) openNamesModal();
+}
+
 // ===== CUSTOMER CODE & HISTORY =====
 let _currentHistory = null;
 let _nameDebounce   = null;
@@ -670,9 +783,14 @@ function reorder(historyIdx) {
   if (!items.length) return;
   const btn = event.target;
   items.forEach(item => {
+    const people = peopleFor(item).map(p => p === mainName() ? '' : p);
+    delete item.person;
     const existing = cart.find(c => c.id === item.id);
-    if (existing) { existing.qty = (existing.qty || 1) + (item.qty || 1); }
-    else          { cart.push(item); }
+    if (existing) {
+      existing.people = [...peopleFor(existing), ...people];
+      existing.qty = (existing.qty || 1) + (item.qty || 1);
+    }
+    else cart.push({ ...item, people });
     const qtyEl = document.getElementById('qty-' + item.id);
     if (qtyEl) {
       const current = parseInt(qtyEl.textContent) || 0;
