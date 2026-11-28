@@ -265,6 +265,18 @@ function sizeLabel(name) {
 }
 
 // Returns all <tr> rows for one order: one row per poke item + optional "Altro" row
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+// Per chi è il piatto; sotto, chi paga se è un'altra persona
+function nameCell(order, item) {
+  const payer = order.customerName && order.customerName !== 'Cliente' ? order.customerName : '';
+  const who = item.person || payer;
+  const paga = payer && who !== payer ? `<div style="font-size:0.72rem;font-weight:400;color:#777">paga: ${escHtml(payer)}</div>` : '';
+  return (escHtml(who) || '—') + paga;
+}
+
 function rowsForOrder(order) {
   const statusMap = {
     pending:   { label: '⏳ Ricevuto',        cls: 'pill-received'  },
@@ -337,7 +349,7 @@ function rowsForOrder(order) {
     if (isTradizionale && !isBurger) {
       return `
         <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
-          <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+          <td class="td-name">${nameCell(order, item)}</td>
           <td><span class="size-badge size-tradizionale">Tradizionale</span></td>
           <td colspan="5" style="font-size:0.82rem">
             <span style="color:#e8a020;font-weight:700">${item.name}</span>
@@ -355,7 +367,7 @@ function rowsForOrder(order) {
     if (!parsed && !isBurger) {
       return `
         <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
-          <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+          <td class="td-name">${nameCell(order, item)}</td>
           <td>${size ? `<span class="size-badge ${size.cls}">${size.label}</span>` : ''}</td>
           <td colspan="5" style="font-size:0.82rem;color:#555">
             <span style="color:#e8a020;font-weight:700">${item.name}</span> ${item.detail || ''}
@@ -383,7 +395,7 @@ function rowsForOrder(order) {
                      + b.extra.map(e => tag('topping-tag topping-extra', '+ ' + e)).join('');
       return `
       <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
-        <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+        <td class="td-name">${nameCell(order, item)}</td>
         <td>${sizeCell}</td>
         <td>${paneHTML || '<span style="color:#ccc">—</span>'}</td>
         <td>${protHTML || '<span style="color:#ccc">—</span>'}</td>
@@ -413,7 +425,7 @@ function rowsForOrder(order) {
 
     return `
       <tr class="order-item-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
-        <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+        <td class="td-name">${nameCell(order, item)}</td>
         <td>${size ? `<span class="size-badge ${size.cls}">${size.label}</span>` : ''}</td>
         <td>${baseHTML}</td>
         <td>${protHTML  || '<span style="color:#ccc">—</span>'}</td>
@@ -438,7 +450,7 @@ function rowsForOrder(order) {
       otherRow = `<tr class="other-row">
         <td colspan="9" class="other-row-cell">
           <strong>Altro:</strong> ${otherItems.map(({ item, i }) => `
-            <span style="display:inline-block">${item.qty > 1 ? item.qty + '× ' : ''}${item.name}</span>
+            <span style="display:inline-block">${item.qty > 1 ? item.qty + '× ' : ''}${item.name}${item.person ? ` (${escHtml(item.person)})` : ''}</span>
             <button class="refund-btn-sm" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa</button>
           `).join(', ')}
         </td>
@@ -465,7 +477,7 @@ function rowsForOrder(order) {
           : '';
         return `
           <tr class="other-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
-            <td class="td-name">${order.customerName && order.customerName !== 'Cliente' ? order.customerName : '—'}</td>
+            <td class="td-name">${nameCell(order, item)}</td>
             <td><span class="size-badge" style="background:#f0f0f0;color:#555">${item.qty > 1 ? item.qty + '×' : ''}</span></td>
             <td colspan="5" style="font-size:0.88rem;font-weight:600;color:#333">${item.name}</td>
             <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
