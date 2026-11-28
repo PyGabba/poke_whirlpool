@@ -269,12 +269,12 @@ function escHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
-// Per chi è il piatto; sotto, chi paga se è un'altra persona
+// Per chi è il piatto; sotto, di chi è l'ordine se è un'altra persona
 function nameCell(order, item) {
   const payer = order.customerName && order.customerName !== 'Cliente' ? order.customerName : '';
   const who = item.person || payer;
-  const paga = payer && who !== payer ? `<div style="font-size:0.72rem;font-weight:400;color:#777">paga: ${escHtml(payer)}</div>` : '';
-  return (escHtml(who) || '—') + paga;
+  const owner = payer && who !== payer ? `<div style="font-size:0.72rem;font-weight:400;color:#777">ordine di ${escHtml(payer)}</div>` : '';
+  return (escHtml(who) || '—') + escHtml(item.nameSuffix) + owner;
 }
 
 function rowsForOrder(order) {
@@ -306,12 +306,27 @@ function rowsForOrder(order) {
   // Refunded items are dropped from the kitchen view entirely — their row is removed.
   const indexedItems = order.items.map((item, i) => ({ item, i }));
   // Poke and burgers both get full kitchen rows (burgers are rendered by their own branch below)
-  const pokeItems  = indexedItems.filter(x => (isPokeItem(x.item) || isBurgerItem(x.item)) && !x.item.refunded);
-  const otherItems = indexedItems.filter(x => !isPokeItem(x.item) && !isBurgerItem(x.item) && !x.item.refunded);
+  // una riga per porzione
+  const portions = indexedItems.filter(x => !x.item.refunded).flatMap(x => {
+    const n = Math.min(Number(x.item.qty) || 1, 50);   // shortcut: la quantità arriva dal client, tetto per non bloccare la pagina
+    return Array.from({ length: n }, (_, copy) => ({ item: { ...x.item, qty: 1 }, i: x.i, copy, copies: n }));
+  });
+  // stesso nome su più righe dello stesso ordine: jack-1, jack-2
+  const who = item => item.person || order.customerName;
+  const total = {}, seen = {};
+  portions.forEach(x => { total[who(x.item)] = (total[who(x.item)] || 0) + 1; });
+  // Poke and burgers both get full kitchen rows (burgers are rendered by their own branch below)
+  const pokeItems  = portions.filter(x => isPokeItem(x.item) || isBurgerItem(x.item));
+  const otherItems = portions.filter(x => !isPokeItem(x.item) && !isBurgerItem(x.item));
+  [...pokeItems, ...otherItems].forEach(x => {   // numerati nell'ordine in cui appaiono
+    const name = who(x.item);
+    seen[name] = (seen[name] || 0) + 1;
+    x.item.nameSuffix = total[name] > 1 ? '-' + seen[name] : '';
+  });
 
   if (pokeItems.length === 0 && otherItems.length === 0) return ''; // nothing left to show for this order
 
-  const rowCount   = pokeItems.length + (otherItems.length > 0 ? 1 : 0) || 1;
+  const rowCount   = pokeItems.length + otherItems.length;
 
   const allergyNote = order.notes
     ? order.notes.replace(/\d*\s*bacchett\w*[^,]*(,\s*)?/gi,'').replace(/\d*\s*forchet\w*[^,]*(,\s*)?/gi,'').trim().replace(/^,\s*|,\s*$/g,'').trim()
@@ -319,10 +334,11 @@ function rowsForOrder(order) {
 
   const wantsChopsticks = !!order.bacchette || (order.notes && order.notes.toLowerCase().includes('bacchette'));
 
-  const itemRows = pokeItems.map(({ item, i }, idx) => {
+  const itemRows = pokeItems.map(({ item, i, copy = 0, copies = 1 }, idx) => {
     const isBurger = isBurgerItem(item);
     const parsed = isBurger ? null : parsePokeDetail(item.detail);
-    const refundBtn = `<button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa</button>`;
+    // il rimborso vale per tutta la voce, quindi un solo pulsante sulla prima porzione
+    const refundBtn = copy ? '' : `<button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa${copies > 1 ? ` tutti (${copies})` : ''}</button>`;
     const size   = sizeLabel(item.name);
     const isTradizionale = !item.detail || (!item.detail.includes('·') && !item.detail.includes('Base:'));
     const itemWantsChopsticks = wantsChopsticks
@@ -441,54 +457,34 @@ function rowsForOrder(order) {
       </tr>`;
   }).join('');
 
-  // Non-poke items: if there are also poke rows, render as a compact extra row;
-  // if poke rows are empty (pure non-poke order), render each as a full row with all columns.
+  // Piatti non poke: una riga ciascuno, con il proprio nome
   let otherRow = '';
   if (otherItems.length > 0) {
-    if (pokeItems.length > 0) {
-      // Compact summary row — allergy/action already covered by rowspan above
-      otherRow = `<tr class="other-row">
-        <td colspan="9" class="other-row-cell">
-          <strong>Altro:</strong> ${otherItems.map(({ item, i }) => `
-            <span style="display:inline-block">${item.qty > 1 ? item.qty + '× ' : ''}${item.name}${item.person ? ` (${escHtml(item.person)})` : ''}</span>
-            <button class="refund-btn-sm" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa</button>
-          `).join(', ')}
-        </td>
-      </tr>`;
-    } else {
-      // Pure non-poke order — render full rows so name/bacchette/allergy/action are visible
-      const orderMeta = [
-        `<strong>#${String(order.orderNumber).padStart(3,'0')}</strong>`,
-        order.tableNumber && order.tableNumber !== '-' ? `🪑 T.${order.tableNumber}` : null,
-        
-        `${date} ${time}`,
-      ].filter(Boolean).join(' · ');
-
-      const nonPokeTotal = parseFloat(order.total || 0).toFixed(2).replace('.', ',');
-      otherRow = otherItems.map(({ item, i }, idx) => {
-        const allergyCell = idx === 0
-          ? `<td class="td-allergy" rowspan="${otherItems.length}">
-               <div style="margin-bottom:5px">${allergyNote}</div>
-             </td>
-             <td class="order-action-cell" rowspan="${otherItems.length}">
-               <strong style="font-size:0.88rem;color:#2e7d32;white-space:nowrap">Tot: € ${nonPokeTotal}</strong>
-               ${actionBtn}
-             </td>`
-          : '';
-        return `
-          <tr class="other-row${idx === 0 ? ' order-first-row' : ''}" id="${idx === 0 ? 'order-' + order.id : ''}">
-            <td class="td-name">${nameCell(order, item)}</td>
-            <td><span class="size-badge" style="background:#f0f0f0;color:#555">${item.qty > 1 ? item.qty + '×' : ''}</span></td>
-            <td colspan="5" style="font-size:0.88rem;font-weight:600;color:#333">${item.name}</td>
-            <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
-              <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
-              <button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa</button>
-            </td>
-            <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${wantsChopsticks ? 'checked' : ''}></td>
-            ${allergyCell}
-          </tr>`;
-      }).join('');
-    }
+    const nonPokeTotal = parseFloat(order.total || 0).toFixed(2).replace('.', ',');
+    otherRow = otherItems.map(({ item, i, copy, copies }, idx) => {
+      const first = idx === 0 && pokeItems.length === 0;   // con righe poke, allergie/azione coprono già queste
+      const allergyCell = first
+        ? `<td class="td-allergy" rowspan="${rowCount}">
+             <div style="margin-bottom:5px">${allergyNote}</div>
+           </td>
+           <td class="order-action-cell" rowspan="${rowCount}">
+             <strong style="font-size:0.88rem;color:#2e7d32;white-space:nowrap">Tot: € ${nonPokeTotal}</strong>
+             ${actionBtn}
+           </td>`
+        : '';
+      return `
+        <tr class="other-row${first ? ' order-first-row' : ''}" id="${first ? 'order-' + order.id : ''}">
+          <td class="td-name">${nameCell(order, item)}</td>
+          <td><span class="size-badge" style="background:#f0f0f0;color:#555">${item.qty > 1 ? item.qty + '×' : ''}</span></td>
+          <td colspan="5" style="font-size:0.88rem;font-weight:600;color:#333">${item.name}</td>
+          <td style="text-align:right;white-space:nowrap;font-size:0.82rem;color:#555">
+            <div>€ ${(item.price * (item.qty || 1)).toFixed(2).replace('.', ',')}</div>
+            ${copy ? '' : `<button class="refund-btn" onclick="refundItem('${order.id}', ${i}, this)">💸 Rimborsa${copies > 1 ? ` tutti (${copies})` : ''}</button>`}
+          </td>
+          <td class="td-chopsticks"><input type="checkbox" class="chopstick-check" ${wantsChopsticks ? 'checked' : ''}></td>
+          ${allergyCell}
+        </tr>`;
+    }).join('');
   }
 
   return itemRows + otherRow;
